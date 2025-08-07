@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>天璇 Merak</title>
-    <!-- 引入 Tailwind CSS，這是一個流行的 CSS 框架，讓設計更簡單 -->
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Google Fonts 的字體，讓頁面更好看 -->
+    <!-- 引入 Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* 在這裡設定網頁字體 */
         body {
             font-family: 'Noto Sans TC', sans-serif;
         }
@@ -19,61 +18,262 @@
 </head>
 <body class="bg-gray-100">
 
-    <!-- 
-      背景圖片設定
-      將下面的 'https://placehold.co/1920x1080/a7c5ff/333333?text=背景圖片' 換成你自己的圖片連結。
-      建議做法：
-      1. 在你的 GitHub 專案中建立一個 'images' 資料夾。
-      2. 將你的背景圖片 (例如 background.jpg) 上傳到這個資料夾。
-      3. 將下面的連結改為相對路徑，例如 './images/background.jpg'。
-    -->
-    <div class="bg-cover bg-center bg-fixed" style="background-image: url('./image/merak_sleep.png')">
+    <!-- 背景圖片設定 -->
+    <div class="bg-cover bg-center bg-fixed" style="background-image: url('./image/background.png')">
         
-        <!-- 主要內容容器，使用 flex 置中 -->
+        <!-- 主要內容容器 -->
         <div class="min-h-screen flex items-center justify-center p-4">
             
-            <!-- 
-              個人資訊卡片
-              使用半透明背景和模糊效果，讓卡片在背景上更突出
-            -->
-            <div class="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 text-center">
+            <!-- 個人資訊卡片 (稍微加寬以容納並排專案) -->
+            <div class="max-w-xl w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 text-center">
                 
-                <!-- 
-                  頭貼圖片
-                  將下面的 'https://placehold.co/150x150/d1e3ff/333333?text=頭貼' 換成你自己的頭貼連結。
-                  建議做法和背景圖片一樣，使用相對路徑，例如 './images/merak.png'。
-                -->
+                <!-- 頭貼圖片 -->
                 <img src="./image/merak.png" alt="個人頭貼" class="w-32 h-32 rounded-full mx-auto mb-4 shadow-lg border-4 border-white">
                 
                 <!-- 姓名 -->
                 <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                    <!-- 在這裡換成你的名字 -->
                     天璇 Merak
                 </h1>
                 
                 <!-- 自我介紹 -->
-                <p class="text-gray-600 mb-6">
-                    <!-- 在這裡寫下你的自我介紹 -->
+                <p class="text-gray-600 mb-4"> <!-- 調整下方間距 -->
                     在夜空中默默注視著大家的一顆恆星，因想要分享自己喜歡的事物而成為了vtuber；圍棋、程式設計、數位IC設計、鋼琴、作曲編曲、天文、Tetris都是我的興趣！
                 </p>
+
+                <!-- 
+                  【樣式修改】個人信箱
+                  改為斜體文字，並移除超連結
+                -->
+                <div class="mb-4">
+                    <p class="text-sm text-gray-500 italic">
+                        merak_official@yahoo.com
+                    </p>
+                </div>
+
+                <!-- 
+                  網頁連結區塊
+                -->
+                <div class="flex justify-center items-center gap-6 mb-8"> <!-- 調整下方間距 -->
+                    <!-- YouTube 連結 -->
+                    <a href="https://www.youtube.com/@merak0325" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-red-600 transition-colors">
+                        <svg class="w-8 h-8" viewBox="0 0 28.57 20" preserveAspectRatio="xMidYMid" focusable="false">
+                            <g>
+                                <path d="M27.9727 3.12324C27.6435 1.89323 26.6768 0.926623 25.4468 0.597366C23.2197 2.24288e-07 14.285 0 14.285 0C14.285 0 5.35042 2.24288e-07 3.12323 0.597366C1.89323 0.926623 0.926623 1.89323 0.597366 3.12324C2.24288e-07 5.35042 0 10 0 10C0 10 2.24288e-07 14.6496 0.597366 16.8768C0.926623 18.1068 1.89323 19.0734 3.12323 19.4026C5.35042 20 14.285 20 14.285 20C14.285 20 23.2197 20 25.4468 19.4026C26.6768 19.0734 27.6435 18.1068 27.9727 16.8768C28.5701 14.6496 28.5701 10 28.5701 10C28.5701 10 28.5677 5.35042 27.9727 3.12324Z" fill="currentColor"></path>
+                                <path d="M11.4253 14.2854L18.8477 10.0004L11.4253 5.71533V14.2854Z" fill="white"></path>
+                            </g>
+                        </svg>
+                    </a>
+                    <!-- Twitter (X) 連結 -->
+                    <a href="https://x.com/MerakChannel" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-black transition-colors">
+                        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                    </a>
+                    <!-- Discord 連結 -->
+                    <a href="https://discord.gg/N2zqhgnu9w" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-indigo-600 transition-colors">
+                        <svg class="w-8 h-8" viewBox="0 -28.5 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" fill="currentColor">
+                            <g>
+                                <path d="M216.856339,16.5966031 C200.285002,8.84328665 182.566144,3.2084988 164.041564,0 C161.766523,4.11318106 159.108624,9.64549908 157.276099,14.0464379 C137.583995,11.0849896 118.072967,11.0849896 98.7430163,14.0464379 C96.9108417,9.64549908 94.1925838,4.11318106 91.8971895,0 C73.3526068,3.2084988 55.6133949,8.86399117 39.0420583,16.6376612 C5.61752293,67.146514 -3.4433191,116.400813 1.08711069,164.955721 C23.2560196,181.510915 44.7403634,191.567697 65.8621325,198.148576 C71.0772151,190.971126 75.7283628,183.341335 79.7352139,175.300261 C72.104019,172.400575 64.7949724,168.822202 57.8887866,164.667963 C59.7209612,163.310589 61.5131304,161.891452 63.2445898,160.431257 C105.36741,180.133187 151.134928,180.133187 192.754523,160.431257 C194.506336,161.891452 196.298154,163.310589 198.110326,164.667963 C191.183787,168.842556 183.854737,172.420929 176.223542,175.320965 C180.230393,183.341335 184.861538,190.991831 190.096624,198.16893 C211.238746,191.588051 232.743023,181.531619 254.911949,164.955721 C260.227747,108.668201 245.831087,59.8662432 216.856339,16.5966031 Z M85.4738752,135.09489 C72.8290281,135.09489 62.4592217,123.290155 62.4592217,108.914901 C62.4592217,94.5396472 72.607595,82.7145587 85.4738752,82.7145587 C98.3405064,82.7145587 108.709962,94.5189427 108.488529,108.914901 C108.508531,123.290155 98.3405064,135.09489 85.4738752,135.09489 Z M170.525237,135.09489 C157.88039,135.09489 147.510584,123.290155 147.510584,108.914901 C147.510584,94.5396472 157.658606,82.7145587 170.525237,82.7145587 C183.391518,82.7145587 193.761324,94.5189427 193.539891,108.914901 C193.539891,123.290155 183.391518,135.09489 170.525237,135.09489 Z" fill-rule="nonzero"></path>
+                            </g>
+                        </svg>
+                    </a>
+                </div>
+
+                <!-- 
+                  【修改】自訂音樂播放器
+                -->
+                <div class="mb-8 p-3 bg-gray-100/80 rounded-lg">
+                    <!-- 【新增】播放器標題 -->
+                    <p class="text-gray-700 font-bold mb-2 text-lg">原創曲欣賞</p>
+                    <div class="flex items-center justify-center gap-4">
+                        <!-- 上一首按鈕 -->
+                        <button id="prev-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-all shadow-md flex-shrink-0">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M8.445 14.832A1 1 0 0010 14.168V5.832a1 1 0 00-1.555-.832L3.12 9.168a1 1 0 000 1.664l5.325 4.001zM15.445 14.832A1 1 0 0017 14.168V5.832a1 1 0 00-1.555-.832L10.12 9.168a1 1 0 000 1.664l5.325 4.001z"></path></svg>
+                        </button>
+                        <button id="play-pause-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-all shadow-md flex-shrink-0">
+                            <!-- 播放圖示 -->
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </button>
+                        <!-- 下一首按鈕 -->
+                        <button id="next-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-all shadow-md flex-shrink-0">
+                           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M4.555 5.168A1 1 0 003 5.832v8.336a1 1 0 001.555.832l5.325-4.168a1 1 0 000-1.664L4.555 5.168zM12.555 5.168A1 1 0 0011 5.832v8.336a1 1 0 001.555.832l5.325-4.168a1 1 0 000-1.664l-5.325-4.168z"></path></svg>
+                        </button>
+                        <!-- 【新增】循環按鈕 -->
+                        <button id="loop-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-all shadow-md flex-shrink-0" title="清單循環">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.21.727A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.727-1.21z" clip-rule="evenodd"></path></svg>
+                        </button>
+                    </div>
+                     <!-- 進度條容器 -->
+                    <div id="progress-container" class="w-full h-2 bg-gray-300 rounded-full cursor-pointer relative flex items-center mt-3">
+                        <!-- 已播放進度 -->
+                        <div id="progress-bar" class="h-2 bg-blue-500 rounded-full pointer-events-none"></div>
+                        <!-- 大球捲軸 -->
+                        <img id="progress-thumb" src="./image/big-ball.png" class="w-6 h-6 absolute top-1/2 -translate-y-1/2 pointer-events-none">
+                    </div>
+                    <!-- 【修改】曲目名稱移至下方 -->
+                    <p id="song-title" class="text-gray-600 font-semibold mt-2 text-sm">原創曲</p>
+                    <!-- 隱藏的 audio 元素 -->
+                    <audio id="song"></audio>
+                </div>
                 
-                <!-- 專案連結區塊 -->
-                <div class="space-y-4">
+                <!-- 
+                  專案連結區塊
+                -->
+                <div class="grid md:grid-cols-2 gap-6">
                     
                     <!-- 專案一 -->
-                    <a href="./大球攻防戰.html" 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">
-                        <!-- 將 '你的專案一網址' 替換成你實際的 GitHub Pages 連結 -->
-                        大球攻防戰
-                    </a>
+                    <div class="bg-gray-100/80 rounded-lg p-4 shadow-inner">
+                        <img src="./image/大球攻防戰.png" alt="大球攻防戰" class="rounded-md mb-4 w-full object-cover">
+                        <a href="./大球攻防戰.html" 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">
+                            大球攻防戰
+                        </a>
+                    </div>
                     
+                    <!-- 專案二 -->
+                    <div class="bg-gray-100/80 rounded-lg p-4 shadow-inner">
+                        <img src="./image/tetris.png" alt="認識方塊練習器" class="rounded-md mb-4 w-full object-cover">
+                        <a href="./Tetris recognition practice.html" 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           class="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">
+                            認識方塊練習器
+                        </a>
+                    </div>
+
                 </div>
 
             </div>
         </div>
     </div>
+
+    <script>
+        // 獲取播放器相關的元素
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const loopBtn = document.getElementById('loop-btn');
+        const song = document.getElementById('song');
+        const songTitle = document.getElementById('song-title');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressThumb = document.getElementById('progress-thumb');
+
+        // 【修改】定義播放列表，調整順序並加入新歌
+        const playlist = [
+            { title: '夢中的月光海', src: './audio/夢中的月光海.mp3' },
+            { title: '夢冬邊境', src: './audio/夢冬邊境.mp3' },
+            { title: '夏夜星舞', src: './audio/夏夜星舞.mp3' }
+        ];
+        let currentSongIndex = 0;
+
+        // 定義播放和暫停的 SVG 圖示內容
+        const playIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+        const pauseIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+
+        // 動畫與狀態相關變數
+        let rotation = 0;
+        let animationFrameId;
+        let isSingleLoop = false;
+
+        // 載入歌曲函式
+        function loadSong(index) {
+            const currentSong = playlist[index];
+            songTitle.textContent = currentSong.title;
+            song.src = currentSong.src;
+        }
+        
+        // 播放/暫停函式
+        function togglePlayPause() {
+            if (song.paused) {
+                song.play();
+            } else {
+                song.pause();
+            }
+        }
+
+        // 切換歌曲函式
+        function changeSong(direction) {
+            const wasPlaying = !song.paused;
+            currentSongIndex = (currentSongIndex + direction + playlist.length) % playlist.length;
+            loadSong(currentSongIndex);
+            if (wasPlaying) {
+                song.play();
+            }
+        }
+        
+        // 滾動與進度更新動畫函式
+        function animate() {
+            // 更新進度
+            const { currentTime, duration } = song;
+            if (duration) {
+                const progressPercent = (currentTime / duration) * 100;
+                progressBar.style.width = `${progressPercent}%`;
+                
+                // 【修正】改用 transform 來移動大球，動畫更平滑
+                const thumbX = (progressContainer.clientWidth * progressPercent) / 100;
+                progressThumb.style.transform = `translateX(${thumbX}px) translateY(-50%) translateX(-50%) rotate(${rotation}deg)`;
+            }
+            // 更新滾動角度
+            rotation += 0.8;
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // 設定進度條函式 (僅用於點擊)
+        function setProgressOnClick(e) {
+            const width = this.clientWidth;
+            const clickX = e.offsetX;
+            const duration = song.duration;
+            if (duration) {
+                song.currentTime = (clickX / width) * duration;
+            }
+        }
+        
+        // 循環模式切換函式
+        function toggleLoop() {
+            isSingleLoop = !isSingleLoop;
+            song.loop = isSingleLoop;
+            if (isSingleLoop) {
+                loopBtn.classList.add('bg-blue-700');
+                loopBtn.title = '單曲循環';
+            } else {
+                loopBtn.classList.remove('bg-blue-700');
+                loopBtn.title = '清單循環';
+            }
+        }
+
+        // 使用事件驅動來管理播放狀態和動畫
+        song.addEventListener('play', () => {
+            playPauseBtn.innerHTML = pauseIcon;
+            cancelAnimationFrame(animationFrameId); 
+            animationFrameId = requestAnimationFrame(animate);
+        });
+
+        song.addEventListener('pause', () => {
+            playPauseBtn.innerHTML = playIcon;
+            cancelAnimationFrame(animationFrameId);
+        });
+        
+        song.addEventListener('ended', () => {
+            // 【修正】如果不是單曲循環模式，就播放下一首
+            if (!isSingleLoop) {
+                currentSongIndex = (currentSongIndex + 1) % playlist.length;
+                loadSong(currentSongIndex);
+                song.play();
+            }
+        });
+        
+        // 主要事件監聽
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        prevBtn.addEventListener('click', () => changeSong(-1));
+        nextBtn.addEventListener('click', () => changeSong(1));
+        loopBtn.addEventListener('click', toggleLoop);
+        
+        progressContainer.addEventListener('click', setProgressOnClick);
+        
+        // 初始載入第一首歌
+        loadSong(currentSongIndex);
+    </script>
 
 </body>
 </html>

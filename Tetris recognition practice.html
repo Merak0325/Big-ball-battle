@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俄羅斯方塊 S/Z L/J 辨識練習</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        #main-menu, #game-container, #completion-message {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        #main-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #main-menu-content h1, #completion-message h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        #main-menu-content p, #completion-message p {
+            margin-bottom: 20px;
+            color: #555;
+            line-height: 1.6;
+        }
+        #main-menu-content div.questions-selector-container { /* Style for questions selector */
+            margin: 15px 0;
+            font-size: 1em;
+        }
+        #main-menu-content label[for="questions-select"] {
+            margin-right: 8px;
+        }
+        #questions-select {
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 0.95em;
+        }
+
+
+        #start-button, #play-again-button, #configure-keys-button, 
+        #save-keys-button, #cancel-keys-button, #back-to-menu-button {
+            padding: 10px 15px;
+            font-size: 1em;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            margin-top: 5px;
+        }
+        #start-button:hover, #play-again-button:hover, #configure-keys-button:hover, 
+        #save-keys-button:hover, #cancel-keys-button:hover, #back-to-menu-button:hover {
+            background-color: #0056b3;
+        }
+        #start-button:active, #play-again-button:active, #configure-keys-button:active, 
+        #save-keys-button:active, #cancel-keys-button:active, #back-to-menu-button:active {
+            transform: scale(0.98); 
+        }
+
+        #configure-keys-button { background-color: #6c757d; }
+        #configure-keys-button:hover { background-color: #545b62; }
+        #cancel-keys-button, #back-to-menu-button { background-color: #6c757d; }
+        #cancel-keys-button:hover, #back-to-menu-button:hover { background-color: #545b62; }
+
+
+        #key-config-area {
+            margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; width:100%;
+        }
+        #key-config-area div {
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+        }
+        #key-config-area label { margin-right: 10px; }
+        #key-config-area input[type="text"] {
+            width: 50px; padding: 5px; font-size: 1em; text-align: center; text-transform: uppercase;
+        }
+
+        #game-container {
+            display: none; flex-direction: column; align-items: center; cursor: default;
+        }
+
+        #game-info {
+            display: flex; justify-content: space-between; width: 100%;
+            margin-bottom: 15px; font-size: 1.1em;
+        }
+        #score-area, #timer-area { padding: 5px 10px; background-color: #e9ecef; border-radius: 5px; }
+
+        #block-display-area {
+            width: 120px; height: 120px; margin: 10px auto;
+            display: grid; justify-content: center; align-content: center;
+        }
+
+        .block-cell { width: 30px; height: 30px; box-sizing: border-box;}
+        .active-cell {
+            background-color: #777;
+            border-top: 1px solid #999; border-left: 1px solid #999;
+            border-bottom: 1px solid #555; border-right: 1px solid #555;
+            transition: background-color 0.1s ease-in-out;
+        }
+
+        #color-choices-area { display: flex; justify-content: center; gap: 20px; margin-top: 10px;}
+        .color-choice { 
+            width: 80px; height: 80px; 
+            border: 2px solid #333;
+            border-radius: 5px; 
+            box-sizing: border-box; 
+            transition: border-color 0.1s ease-out, box-shadow 0.1s ease-out;
+        }
+        .color-choice-selected { 
+            border-color: #ffc107;
+            box-shadow: 0 0 10px 3px #ffc107aa;
+        }
+
+
+        #instructions { margin-top: 10px; font-size: 0.9em; color: #555; min-height: 2.4em; }
+        #feedback-area { margin-top: 10px; font-weight: bold; height: 25px;}
+        
+        #game-controls { 
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #completion-message { display: none; }
+        #completion-message h2 { color: #28a745; } 
+        #completion-message p { line-height: 1.8; }
+
+
+    </style>
+</head>
+<body>
+    <div id="main-menu">
+        <div id="main-menu-content">
+            <h1>方塊顏色辨識挑戰</h1>
+            <div class="questions-selector-container">
+                <label for="questions-select">目標分數:</label>
+                <select id="questions-select">
+                    <option value="10">10 分</option>
+                    <option value="20">20 分</option>
+                    <option value="30" selected>30 分 (預設)</option>
+                    <option value="50">50 分</option>
+                </select>
+            </div>
+            <p>目標 <span id="main-menu-target-score">30</span> 分！</p>
+            <button id="start-button">開始挑戰</button>
+            <button id="configure-keys-button">設定按鍵</button>
+        </div>
+        <div id="key-config-area" style="display: none;">
+            <h3>按鍵設定</h3>
+            <div>
+                <label for="key-left-input">左選擇鍵 (預設 X): </label>
+                <input type="text" id="key-left-input" maxlength="1">
+            </div>
+            <div>
+                <label for="key-right-input">右選擇鍵 (預設 M): </label>
+                <input type="text" id="key-right-input" maxlength="1">
+            </div>
+            <div style="margin-top: 15px; justify-content: center; gap:10px;">
+                <button id="save-keys-button">儲存設定</button>
+                <button id="cancel-keys-button">返回</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="game-info">
+             <div id="score-area">分數: <span id="score">0</span> / <span id="target-score">30</span></div>
+             <div id="timer-area">時間: <span id="timer-display">00:00.00</span></div>
+        </div>
+        <div id="block-display-area"></div>
+        <div id="color-choices-area">
+            <div class="color-choice" id="choice-left"></div>
+            <div class="color-choice" id="choice-right"></div>
+        </div>
+        <div id="instructions"></div>
+        <div id="feedback-area"></div>
+        <div id="game-controls">
+            <button id="back-to-menu-button">返回主選單</button>
+        </div>
+    </div>
+
+    <div id="completion-message"></div>
+
+    <script>
+        const mainMenuDiv = document.getElementById('main-menu');
+        const mainMenuContentDiv = document.getElementById('main-menu-content');
+        const startButton = document.getElementById('start-button');
+        const configureKeysButton = document.getElementById('configure-keys-button');
+        const keyConfigArea = document.getElementById('key-config-area');
+        const keyLeftInput = document.getElementById('key-left-input');
+        const keyRightInput = document.getElementById('key-right-input');
+        const saveKeysButton = document.getElementById('save-keys-button');
+        const cancelKeysButton = document.getElementById('cancel-keys-button');
+        const mainMenuTargetScoreDisplay = document.getElementById('main-menu-target-score');
+        const questionsSelect = document.getElementById('questions-select'); 
+
+        const gameContainerDiv = document.getElementById('game-container');
+        const completionMessageDiv = document.getElementById('completion-message');
+        const backToMenuButton = document.getElementById('back-to-menu-button'); 
+        
+        const instructionsDiv = document.getElementById('instructions');
+        const blockDisplayArea = document.getElementById('block-display-area');
+        const choiceLeftDiv = document.getElementById('choice-left'); 
+        const choiceRightDiv = document.getElementById('choice-right'); 
+        const feedbackArea = document.getElementById('feedback-area');
+        
+        const scoreDisplay = document.getElementById('score');
+        const targetScoreDisplay = document.getElementById('target-score'); 
+        const timerDisplay = document.getElementById('timer-display');
+
+        const BRIGHT_GREEN = '#28a745'; 
+
+        const tetrominoes = {
+            'S': { shapes: [ [[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]] ], color: BRIGHT_GREEN, name: 'S' },
+            'Z': { shapes: [ [[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]] ], color: 'red', name: 'Z' },
+            'L': { shapes: [ [[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]] ], color: 'orange', name: 'L' },
+            'J': { shapes: [ [[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]] ], color: 'blue', name: 'J' }
+        };
+        const blockColorNames = {
+            'S': '綠色', 'Z': '紅色', 'L': '橘色', 'J': '藍色'
+        };
+        const blockPairs = { 'S': 'Z', 'Z': 'S', 'L': 'J', 'J': 'L' };
+        const allBlockTypes = ['S', 'Z', 'L', 'J'];
+
+        let QUESTIONS_PER_GAME = 30; 
+        const TIMER_UPDATE_INTERVAL_MS = 50; 
+        const CHOICE_HIGHLIGHT_DURATION_MS = 200; 
+        const FLASH_CORRECT_BLOCK_COLOR_DURATION_MS = 200;
+        const PENALTY_DURATION_MS = 5000;
+
+        let score = 0;
+        let totalAttemptedQuestions = 0;
+        let gameStartTime, gameTimerInterval = null, gameActive = false; 
+        let currentBlockName, currentCorrectColor, leftChoiceColor, rightChoiceColor;
+        let lastPresentedBlockName = null, lastPresentedShapeIndex = -1;
+        let leftKey = 'x', rightKey = 'm';
+        let gameProgressionTimeoutId = null; 
+
+        function updateMainMenuTargetScore() {
+            if(mainMenuTargetScoreDisplay && questionsSelect) {
+                mainMenuTargetScoreDisplay.textContent = questionsSelect.value;
+            }
+        }
+
+        function updateInstructionsText() {
+            instructionsDiv.innerHTML = `按 '${leftKey.toUpperCase()}' 鍵或點擊滑鼠左鍵選左<br>按 '${rightKey.toUpperCase()}' 鍵或點擊滑鼠右鍵選右`;
+        }
+
+        function getRandomElement(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        
+        function formatTime(totalMilliseconds) { 
+            const totalCentiseconds = Math.floor(totalMilliseconds / 10); 
+            const totalFullSeconds = Math.floor(totalCentiseconds / 100);
+            const minutes = Math.floor(totalFullSeconds / 60);
+            const seconds = totalFullSeconds % 60;
+            const centiseconds = totalCentiseconds % 100;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            if (!gameStartTime) {
+                timerDisplay.textContent = formatTime(0); 
+                return;
+            }
+            const elapsedMilliseconds = Date.now() - gameStartTime;
+            timerDisplay.textContent = formatTime(elapsedMilliseconds);
+        }
+
+        function drawBlock(shape) {
+            blockDisplayArea.innerHTML = '';
+            const rows = shape.length; const cols = shape[0].length;
+            blockDisplayArea.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+            blockDisplayArea.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('block-cell');
+                    if (shape[r][c] === 1) {
+                        cell.classList.add('active-cell');
+                    }
+                    blockDisplayArea.appendChild(cell);
+                }
+            }
+        }
+
+        function nextProblem() {
+            gameActive = false; feedbackArea.textContent = '';
+            let newBlockNameTry, newShapeIndexTry, newBlockDataTry;
+            do {
+                newBlockNameTry = getRandomElement(allBlockTypes);
+                newBlockDataTry = tetrominoes[newBlockNameTry];
+                newShapeIndexTry = Math.floor(Math.random() * newBlockDataTry.shapes.length);
+            } while (newBlockNameTry === lastPresentedBlockName && newShapeIndexTry === lastPresentedShapeIndex && allBlockTypes.length * 2 > 1 );
+            lastPresentedBlockName = newBlockNameTry; lastPresentedShapeIndex = newShapeIndexTry;
+            currentBlockName = newBlockNameTry; const blockData = newBlockDataTry;
+            currentCorrectColor = blockData.color; const currentShape = blockData.shapes[newShapeIndexTry];
+            drawBlock(currentShape);
+            const pairBlockName = blockPairs[currentBlockName]; const pairColor = tetrominoes[pairBlockName].color;
+            if (Math.random() < 0.5) { leftChoiceColor = currentCorrectColor; rightChoiceColor = pairColor; } 
+            else { leftChoiceColor = pairColor; rightChoiceColor = currentCorrectColor; }
+            choiceLeftDiv.style.backgroundColor = leftChoiceColor;
+            choiceRightDiv.style.backgroundColor = rightChoiceColor;
+            if (score < QUESTIONS_PER_GAME) { setTimeout(() => { gameActive = true; }, 100); }
+        }
+        
+        function processAnswer(selectedColor, choiceDiv) { 
+            if (!gameActive || selectedColor === null) return;
+            gameActive = false; 
+            
+            totalAttemptedQuestions++;
+
+            if (gameProgressionTimeoutId) { 
+                clearTimeout(gameProgressionTimeoutId);
+                gameProgressionTimeoutId = null;
+            }
+
+            if (choiceDiv) { 
+                choiceDiv.classList.add('color-choice-selected');
+                setTimeout(() => {
+                    choiceDiv.classList.remove('color-choice-selected');
+                }, CHOICE_HIGHLIGHT_DURATION_MS);
+            }
+            
+            const activeCells = blockDisplayArea.querySelectorAll('.active-cell');
+            
+            if (selectedColor === currentCorrectColor) {
+                score++; scoreDisplay.textContent = score;
+                feedbackArea.textContent = '正確!'; feedbackArea.style.color = BRIGHT_GREEN; 
+
+                activeCells.forEach(cell => { cell.style.backgroundColor = currentCorrectColor; });
+                gameProgressionTimeoutId = setTimeout(() => { 
+                    activeCells.forEach(cell => { cell.style.backgroundColor = ''; }); 
+
+                    if (score >= QUESTIONS_PER_GAME) {
+                         endGame(); 
+                    } else {
+                         nextProblem(); 
+                    }
+                    gameProgressionTimeoutId = null; 
+                }, FLASH_CORRECT_BLOCK_COLOR_DURATION_MS);
+
+            } else {
+                const correctColorName = blockColorNames[currentBlockName] || currentCorrectColor;
+                feedbackArea.textContent = `錯誤! 正確是 ${correctColorName}的${currentBlockName}方塊。`; 
+                feedbackArea.style.color = 'red';
+
+                activeCells.forEach(cell => { cell.style.backgroundColor = currentCorrectColor; });
+                
+                gameProgressionTimeoutId = setTimeout(() => { 
+                    activeCells.forEach(cell => { cell.style.backgroundColor = ''; }); 
+                    if (score < QUESTIONS_PER_GAME) nextProblem(); 
+                    gameProgressionTimeoutId = null; 
+                }, PENALTY_DURATION_MS);
+            }
+        }
+
+        function handleKeyboardInput(event) {
+            if (!gameActive) return;
+            const key = event.key.toLowerCase();
+            let selectedColor = null;
+            let choiceDiv = null;
+            if (key === leftKey) { selectedColor = leftChoiceColor; choiceDiv = choiceLeftDiv; }
+            else if (key === rightKey) { selectedColor = rightChoiceColor; choiceDiv = choiceRightDiv; }
+            
+            if (selectedColor !== null) processAnswer(selectedColor, choiceDiv);
+        }
+
+        function handleGlobalLeftClick(event) {
+            if (event.target.tagName === 'BUTTON') return;
+            if (gameActive) processAnswer(leftChoiceColor, choiceLeftDiv);
+        }
+
+        function handleGlobalRightClick(event) {
+            if (event.target.tagName === 'BUTTON') return;
+            event.preventDefault();
+            if (gameActive) processAnswer(rightChoiceColor, choiceRightDiv);
+        }
+
+        function addGameInputListeners() {
+            document.addEventListener('keydown', handleKeyboardInput);
+            gameContainerDiv.addEventListener('click', handleGlobalLeftClick);
+            gameContainerDiv.addEventListener('contextmenu', handleGlobalRightClick);
+        }
+
+        function removeGameInputListeners() {
+            document.removeEventListener('keydown', handleKeyboardInput);
+            gameContainerDiv.removeEventListener('click', handleGlobalLeftClick);
+            gameContainerDiv.removeEventListener('contextmenu', handleGlobalRightClick);
+        }
+
+        function clearPendingGameLogic() { 
+            if (gameProgressionTimeoutId) {
+                clearTimeout(gameProgressionTimeoutId);
+                gameProgressionTimeoutId = null;
+            }
+        }
+
+        function startGame() {
+            clearPendingGameLogic(); 
+            if (gameTimerInterval) clearInterval(gameTimerInterval); 
+
+            mainMenuDiv.style.display = 'none';
+            completionMessageDiv.style.display = 'none';
+            gameContainerDiv.style.display = 'flex';
+
+            QUESTIONS_PER_GAME = parseInt(questionsSelect.value); 
+            
+            score = 0; 
+            totalAttemptedQuestions = 0;
+            scoreDisplay.textContent = score;
+            targetScoreDisplay.textContent = QUESTIONS_PER_GAME; 
+            feedbackArea.textContent = '';
+            lastPresentedBlockName = null; lastPresentedShapeIndex = -1;
+            
+            gameStartTime = Date.now();
+            gameTimerInterval = setInterval(updateTimerDisplay, TIMER_UPDATE_INTERVAL_MS); 
+            updateTimerDisplay(); 
+            
+            updateInstructionsText();
+            addGameInputListeners();
+            gameActive = false; nextProblem();
+        }
+
+        function endGame() {
+            gameActive = false; 
+            removeGameInputListeners(); 
+            clearPendingGameLogic(); 
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            gameTimerInterval = null; 
+            const finalTimeMilliseconds = gameStartTime ? (Date.now() - gameStartTime) : 0;
+            const finalTimeString = formatTime(finalTimeMilliseconds);
+            timerDisplay.textContent = finalTimeString; 
+
+            const accuracy = totalAttemptedQuestions > 0 ? (score / totalAttemptedQuestions) * 100 : 0;
+
+            feedbackArea.textContent = ''; gameContainerDiv.style.display = 'none';
+            completionMessageDiv.innerHTML = `
+                <h2>挑戰完成！</h2>
+                <p>目標分數：${QUESTIONS_PER_GAME} 分<br> 
+                   您的得分：${score} 分<br>
+                   (本次嘗試：${totalAttemptedQuestions} 題)<br>
+                   總用時：${finalTimeString}<br>
+                   正確率：${accuracy.toFixed(2)}%</p>
+                <button id="play-again-button">再玩一次</button>`;
+            completionMessageDiv.style.display = 'block';
+            const playAgainBtn = document.getElementById('play-again-button');
+            if (playAgainBtn) {
+                playAgainBtn.addEventListener('click', showMainMenu);
+            }
+        }
+
+        function showMainMenu() {
+            gameActive = false; 
+            removeGameInputListeners(); 
+            clearPendingGameLogic(); 
+            if (gameTimerInterval) { 
+                clearInterval(gameTimerInterval);
+                gameTimerInterval = null;
+            }
+            completionMessageDiv.style.display = 'none';
+            keyConfigArea.style.display = 'none'; 
+            mainMenuContentDiv.style.display = 'flex'; 
+            mainMenuContentDiv.style.flexDirection = 'column';
+            mainMenuContentDiv.style.alignItems = 'center';
+            mainMenuDiv.style.display = 'flex';
+            gameContainerDiv.style.display = 'none';
+            gameStartTime = null;
+            updateTimerDisplay(); 
+            updateMainMenuTargetScore(); 
+            targetScoreDisplay.textContent = questionsSelect.value; 
+            updateInstructionsText(); 
+        }
+        
+        startButton.addEventListener('click', startGame);
+        backToMenuButton.addEventListener('click', showMainMenu); 
+        questionsSelect.addEventListener('change', updateMainMenuTargetScore); 
+
+        configureKeysButton.addEventListener('click', () => {
+            mainMenuContentDiv.style.display = 'none';
+            keyConfigArea.style.display = 'block';
+            keyLeftInput.value = leftKey.toUpperCase();
+            keyRightInput.value = rightKey.toUpperCase();
+            keyLeftInput.focus();
+        });
+        cancelKeysButton.addEventListener('click', () => {
+            keyConfigArea.style.display = 'none';
+            mainMenuContentDiv.style.display = 'flex';
+        });
+        saveKeysButton.addEventListener('click', () => {
+            const newLeft = keyLeftInput.value.trim().toLowerCase();
+            const newRight = keyRightInput.value.trim().toLowerCase();
+            let validLeft = true, validRight = true, changesMade = false;
+
+            if (newLeft && newLeft.length === 1 && /^[a-z0-9]$/i.test(newLeft)) {
+                if (leftKey !== newLeft) changesMade = true;
+            } else if (newLeft) {
+                alert("左選擇鍵無效，請輸入單個字母或數字。"); validLeft = false;
+            }
+            if (newRight && newRight.length === 1 && /^[a-z0-9]$/i.test(newRight)) {
+                if (rightKey !== newRight) changesMade = true;
+            } else if (newRight) {
+                alert("右選擇鍵無效，請輸入單個字母或數字。"); validRight = false;
+            }
+            
+            const tempLeft = (newLeft && validLeft) ? newLeft : leftKey;
+            const tempRight = (newRight && validRight) ? newRight : rightKey;
+
+            if (tempLeft === tempRight && ( (newLeft && validLeft) || (newRight && validRight) ) ) {
+                 alert("左右選擇鍵不能相同！請重新設定。");
+                 changesMade = false; 
+            } else {
+                if (newLeft && validLeft) leftKey = newLeft;
+                if (newRight && validRight) rightKey = newRight;
+            }
+            
+            if (changesMade) { 
+                 alert('按鍵設定已儲存！');
+            } else if (!newLeft && !newRight && validLeft && validRight) {
+            } else if ((newLeft && !validLeft) || (newRight && !validRight)) { 
+            }
+             updateInstructionsText();
+             keyConfigArea.style.display = 'none';
+             mainMenuContentDiv.style.display = 'flex';
+        });
+        
+        [keyLeftInput, keyRightInput].forEach(input => {
+            input.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') { event.preventDefault(); saveKeysButton.click(); }
+            });
+        });
+
+        updateMainMenuTargetScore(); 
+        updateTimerDisplay(); 
+        showMainMenu(); 
+    </script>
+</body>
+</html>
