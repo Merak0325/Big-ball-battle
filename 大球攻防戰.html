@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大球攻防戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: manipulation; /* 禁用雙擊縮放 */
+        }
+        .game-canvas {
+            background-color: #111827; 
+            cursor: default;
+        }
+        .unit-button, .lane-button, .difficulty-button, .skill-button, .menu-button {
+            transition: all 0.2s ease;
+        }
+        .unit-button:disabled, .skill-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .unit-button:not(:disabled):hover, .difficulty-button:hover, .skill-button:not(:disabled):hover, .menu-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .lane-button.active-lane {
+            background-color: #fbbf24; /* yellow-400 */
+            color: #1f2937; /* gray-800 */
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+        }
+        .game-over-modal, #main-menu, #instructions-modal, #pause-modal, #settings-modal {
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        #unit-tooltip {
+            display: none;
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
+            font-size: 0.875rem;
+            z-index: 100;
+            pointer-events: none; /* 讓滑鼠事件穿透 toolip */
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        #alert-message, #timewarp-indicator {
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+        }
+        @keyframes showAlert {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+        .alert-active {
+            animation: showAlert 2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen p-4 text-white">
+
+    <!-- 主選單 -->
+    <div id="main-menu" class="w-full max-w-5xl mx-auto bg-gray-900 rounded-2xl shadow-2xl p-8 text-center">
+        <h1 class="text-5xl font-bold text-yellow-300 mb-4">大球攻防戰</h1>
+        <p class="text-xl text-gray-300 mb-8">選擇挑戰難度</p>
+        <div class="flex flex-col items-center gap-4">
+            <div class="flex justify-center gap-4">
+                <button id="difficulty-easy" class="difficulty-button bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-xl">簡單</button>
+                <button id="difficulty-normal" class="difficulty-button bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-xl">普通</button>
+                <button id="difficulty-hard" class="difficulty-button bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-xl">困難</button>
+                <button id="difficulty-hell" class="difficulty-button bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-xl">地獄</button>
+            </div>
+            <div class="flex justify-center gap-4 mt-6">
+                <button id="instructions-button" class="difficulty-button bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg text-lg">遊戲說明</button>
+                <button id="settings-button" class="difficulty-button bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg text-lg">遊戲設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊戲說明 -->
+    <div id="instructions-modal" class="hidden w-full max-w-5xl mx-auto bg-gray-900 rounded-2xl shadow-2xl p-8 text-left">
+        <h2 class="text-3xl font-bold text-yellow-300 mb-4 text-center">遊戲說明</h2>
+        <div class="text-gray-300 space-y-4">
+            <p>在遙遠的宇宙深處，一場關乎星系存亡的戰爭爆發了。您將指揮您的星系(🌌)，召喚不同特性的星體單位，對抗來自敵方星雲(🌀)的侵略。利用您的策略與技能，摧毀敵方的大本營，征服整個星系！</p>
+            <div>
+                <h3 class="text-xl font-bold text-white mb-2">操作說明：</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong class="text-yellow-400">選擇路線:</strong> 點擊右下角的「上航道」/「下航道」按鈕，或使用鍵盤 <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">W</kbd> / <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">S</kbd> 鍵來選擇出兵路線。</li>
+                    <li><strong class="text-yellow-400">召喚單位:</strong> 點擊單位按鈕來消耗能量，從您選擇的路線派出單位。</li>
+                    <li><strong class="text-yellow-400">使用技能:</strong> 點擊技能按鈕施放強大的主動技，每個技能都有冷卻時間。</li>
+                </ul>
+            </div>
+             <div>
+                <h3 class="text-xl font-bold text-white mb-2">單位特性：</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong class="text-red-400">紅矮星 (⚔️):</strong> 基礎的近戰單位，血量較高，適合擔任前鋒。</li>
+                    <li><strong class="text-gray-300">白矮星 (🛡️):</strong> 防禦型單位，血量極高但攻擊力低，能有效吸收傷害。</li>
+                    <li><strong class="text-yellow-400">黃矮星 (🏹):</strong> 遠程輸出單位，攻擊力高但血量脆弱，需要前排保護。</li>
+                    <li><strong class="text-cyan-400">藍色大球 (🌟):</strong> 終極單位，攻速極快，是單點清除的王者。</li>
+                </ul>
+            </div>
+        </div>
+        <div class="text-center mt-8">
+            <button id="back-to-menu-button" class="difficulty-button bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg text-lg">返回</button>
+        </div>
+    </div>
+
+    <!-- 遊戲設定 -->
+    <div id="settings-modal" class="hidden w-full max-w-lg mx-auto bg-gray-900 rounded-2xl shadow-2xl p-8 text-left">
+        <h2 class="text-3xl font-bold text-yellow-300 mb-6 text-center">遊戲設定</h2>
+        <div class="space-y-6 text-lg">
+            <div class="flex items-center justify-between">
+                <label for="toggle-shadows" class="text-gray-300">單位陰影效果</label>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-shadows" class="sr-only peer" checked>
+                    <div class="w-14 h-8 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            <div class="flex items-center justify-between">
+                <label for="toggle-vfx" class="text-gray-300">視覺特效 (衝擊、爆炸等)</label>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-vfx" class="sr-only peer" checked>
+                    <div class="w-14 h-8 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+        </div>
+        <div class="text-center mt-10">
+            <button id="back-to-menu-from-settings-button" class="difficulty-button bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg text-lg">返回</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden relative w-full max-w-5xl mx-auto bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
+        <!-- 遊戲資訊欄 -->
+        <div class="p-4 bg-gray-700/50 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                 <button id="pause-button" class="text-2xl hover:text-yellow-300 transition-colors">⚙️</button>
+                <div class="text-left">
+                    <h2 class="text-lg font-bold text-yellow-300">能量</h2>
+                    <p id="money-display" class="text-2xl font-black">150</p>
+                </div>
+            </div>
+            <div class="text-center">
+                 <h1 class="text-2xl font-bold tracking-wider">大球攻防戰</h1>
+                 <div class="flex justify-center items-center gap-4 text-sm mt-1">
+                    <div id="player-unit-counts" class="flex items-center gap-2"></div>
+                    <div id="enemy-unit-counts" class="flex items-center gap-2"></div>
+                 </div>
+            </div>
+            <div class="text-right">
+                <h2 class="text-lg font-bold text-red-400">敵方星系HP</h2>
+                <div class="w-32 bg-gray-600 rounded-full h-4 overflow-hidden mt-1">
+                    <div id="enemy-hp-bar-ui" class="bg-red-500 h-4 rounded-full" style="width: 100%"></div>
+                </div>
+                <p id="enemy-hp-display" class="text-sm mt-1 text-gray-300"></p>
+            </div>
+        </div>
+
+        <!-- 遊戲畫布 -->
+        <canvas id="gameCanvas" class="w-full game-canvas"></canvas>
+        
+        <!-- 警報訊息 -->
+        <div id="alert-message" class="hidden absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-black text-red-500 z-50"></div>
+        
+        <!-- 時間扭曲指示器 -->
+        <div id="timewarp-indicator" class="hidden absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-2 text-xl font-bold text-purple-400 z-50"></div>
+
+
+        <!-- 玩家控制項 -->
+        <div class="p-4 bg-gray-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+             <div class="text-left">
+                <h2 class="text-lg font-bold text-blue-400">我方星系HP</h2>
+                <div class="w-32 bg-gray-600 rounded-full h-4 overflow-hidden mt-1">
+                    <div id="player-hp-bar-ui" class="bg-blue-500 h-4 rounded-full" style="width: 100%"></div>
+                </div>
+                 <p id="player-hp-display" class="text-sm mt-1 text-gray-300"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="flex flex-col space-y-2">
+                    <button id="select-lane-top" class="lane-button bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-md">上航道 (W)</button>
+                    <button id="select-lane-bottom" class="lane-button bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-md">下航道 (S)</button>
+                </div>
+                <div id="unit-controls" class="flex space-x-2 border-l-2 border-gray-600 pl-2 ml-2">
+                    <button id="spawn-unit-1" data-unit="redDwarf" class="unit-button bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md"><div>紅矮星</div><div class="text-sm font-normal">費用: 50</div></button>
+                    <button id="spawn-unit-3" data-unit="whiteDwarf" class="unit-button bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded-lg shadow-md"><div>白矮星</div><div class="text-sm font-normal">費用: 100</div></button>
+                    <button id="spawn-unit-2" data-unit="yellowDwarf" class="unit-button bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md"><div>黃矮星</div><div class="text-sm font-normal">費用: 75</div></button>
+                    <button id="spawn-unit-4" data-unit="blueSupergiant" class="unit-button bg-cyan-400 hover:bg-cyan-500 text-black font-bold py-2 px-4 rounded-lg shadow-md"><div>藍色大球</div><div class="text-sm font-normal">費用: 900</div></button>
+                </div>
+                <div id="skill-controls" class="grid grid-cols-2 gap-2 border-l-2 border-gray-600 pl-2 ml-2">
+                    <button id="skill-energy" class="skill-button flex items-center justify-center w-28 bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-3 rounded-lg shadow-md text-sm">⚡能量爆發</button>
+                    <button id="skill-meteor" class="skill-button flex items-center justify-center w-28 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3 rounded-lg shadow-md text-sm">☄️隕石轟炸</button>
+                    <button id="skill-reinforcements" class="skill-button flex items-center justify-center w-28 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg shadow-md text-sm">🚀緊急增援</button>
+                    <button id="skill-timewarp" class="skill-button flex items-center justify-center w-28 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-lg shadow-md text-sm">⏳時間扭曲</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 單位資訊提示框 -->
+    <div id="unit-tooltip"></div>
+    
+    <!-- 暫停選單 -->
+    <div id="pause-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-lg text-center space-y-4">
+            <h2 class="text-3xl font-bold text-white mb-4">遊戲暫停</h2>
+            <button id="resume-button" class="menu-button w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-xl">繼續遊戲</button>
+            <button id="restart-ingame-button" class="menu-button w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-6 rounded-lg text-xl">重新開始</button>
+            <button id="back-to-menu-ingame-button" class="menu-button w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-xl">返回主選單</button>
+        </div>
+    </div>
+
+    <!-- 遊戲結束彈出視窗 -->
+    <div id="game-over-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div class="game-over-modal bg-gray-800 p-8 rounded-2xl shadow-lg text-center">
+            <h2 id="game-over-title" class="text-4xl font-bold mb-4"></h2>
+            <p id="game-over-message" class="text-lg mb-6"></p>
+            <button id="restart-button" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-6 rounded-lg text-xl shadow-md transition-transform duration-200 hover:scale-105">
+                返回主選單
+            </button>
+        </div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI 元素
+    const mainMenu = document.getElementById('main-menu');
+    const gameContainer = document.getElementById('game-container');
+    const moneyDisplay = document.getElementById('money-display');
+    const alertMessage = document.getElementById('alert-message');
+    const playerUnitCountsDisplay = document.getElementById('player-unit-counts');
+    const enemyUnitCountsDisplay = document.getElementById('enemy-unit-counts');
+    const timewarpIndicator = document.getElementById('timewarp-indicator');
+    const pauseButton = document.getElementById('pause-button');
+    const pauseModal = document.getElementById('pause-modal');
+    const resumeButton = document.getElementById('resume-button');
+    const restartIngameButton = document.getElementById('restart-ingame-button');
+    const backToMenuIngameButton = document.getElementById('back-to-menu-ingame-button');
+    const unitButtons = {
+        redDwarf: document.getElementById('spawn-unit-1'),
+        yellowDwarf: document.getElementById('spawn-unit-2'),
+        whiteDwarf: document.getElementById('spawn-unit-3'),
+        blueSupergiant: document.getElementById('spawn-unit-4')
+    };
+    const skillButtons = {
+        energy: document.getElementById('skill-energy'),
+        meteor: document.getElementById('skill-meteor'),
+        reinforcements: document.getElementById('skill-reinforcements'),
+        timewarp: document.getElementById('skill-timewarp'),
+    };
+    const playerHpBarUI = document.getElementById('player-hp-bar-ui');
+    const enemyHpBarUI = document.getElementById('enemy-hp-bar-ui');
+    const playerHpDisplay = document.getElementById('player-hp-display');
+    const enemyHpDisplay = document.getElementById('enemy-hp-display');
+    const unitTooltip = document.getElementById('unit-tooltip');
+    const gameOverModal = document.getElementById('game-over-modal');
+    const gameOverTitle = document.getElementById('game-over-title');
+    const gameOverMessage = document.getElementById('game-over-message');
+    const restartButton = document.getElementById('restart-button');
+    const topLaneButton = document.getElementById('select-lane-top');
+    const bottomLaneButton = document.getElementById('select-lane-bottom');
+    const difficultyButtons = {
+        easy: document.getElementById('difficulty-easy'),
+        normal: document.getElementById('difficulty-normal'),
+        hard: document.getElementById('difficulty-hard'),
+        hell: document.getElementById('difficulty-hell'),
+    };
+    const instructionsButton = document.getElementById('instructions-button');
+    const instructionsModal = document.getElementById('instructions-modal');
+    const backToMenuButton = document.getElementById('back-to-menu-button');
+    
+    // 設定選單 UI 元素
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsButton = document.getElementById('settings-button');
+    const backToMenuFromSettingsButton = document.getElementById('back-to-menu-from-settings-button');
+    const toggleShadows = document.getElementById('toggle-shadows');
+    const toggleVFX = document.getElementById('toggle-vfx');
+
+
+    let money, playerUnits, enemyUnits, frameCount, gameState, selectedLane, waypoints, projectiles, vfx, difficulty, timeWarpActiveTimer;
+
+    // 遊戲設定
+    let gameSettings = {
+        showShadows: true,
+        showVFX: true,
+    };
+
+    // 音效合成器
+    let synth, metalSynth, noiseSynth, tickSynth, tickLoop, timeWarpSynth;
+    function setupSynths() {
+        synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
+        }).toDestination();
+        metalSynth = new Tone.MetalSynth({
+            frequency: 50,
+            envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+            harmonicity: 5.1,
+            modulationIndex: 32,
+            resonance: 4000,
+            octaves: 1.5
+        }).toDestination();
+        noiseSynth = new Tone.NoiseSynth({
+            noise: { type: 'white' },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0 }
+        }).toDestination();
+        tickSynth = new Tone.MembraneSynth({
+            pitchDecay: 0.008,
+            octaves: 2,
+            envelope: { attack: 0.0006, decay: 0.5, sustain: 0 }
+        }).toDestination();
+        tickLoop = new Tone.Loop(time => {
+            tickSynth.triggerAttackRelease("C4", "32n", time);
+        }, "4n");
+        timeWarpSynth = new Tone.FMSynth({
+            harmonicity: 3.01,
+            modulationIndex: 14,
+            envelope: { attack: 0.2, decay: 0.8, sustain: 0.1, release: 2 },
+            modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.1, release: 1 }
+        }).toDestination();
+    }
+    
+    // 難度設定
+    const difficultySettings = {
+        easy: { name: "簡單", enemyHpMultiplier: 1.2, enemyAttackMultiplier: 1.2, enemySpawnRate: 180, startingMoney: 100, enemyBaseHpMultiplier: 1.6 },
+        normal: { name: "普通", enemyHpMultiplier: 1.5, enemyAttackMultiplier: 1.5, enemySpawnRate: 90, startingMoney: 100, enemyBaseHpMultiplier: 2.2 },
+        hard: { name: "困難", enemyHpMultiplier: 1.8, enemyAttackMultiplier: 1.8, enemySpawnRate: 75, startingMoney: 200, enemyBaseHpMultiplier: 3.0 },
+        hell: { name: "地獄", enemyHpMultiplier: 2.2, enemyAttackMultiplier: 2.0, enemySpawnRate: 60, startingMoney: 400, enemyBaseHpMultiplier: 4.0 }
+    };
+
+    // 技能設定
+    const skills = {
+        energy: { name: '⚡能量爆發', cooldown: 45 * 60, currentCooldown: 0, effect: () => { money += 150; synth.triggerAttackRelease("C5", "8n"); } },
+        meteor: { name: '☄️隕石轟炸', cooldown: 120 * 60, currentCooldown: 0, effect: () => { 
+            enemyUnits.forEach(unit => {
+                unit.takeDamage(150);
+                vfx.push(new VFX(unit.x, unit.y - 50, 'meteorStrike'));
+            });
+            noiseSynth.triggerAttackRelease("2n");
+        } },
+        reinforcements: { name: '🚀緊急增援', cooldown: 90 * 60, currentCooldown: 0, effect: () => {
+            for (let i = 0; i < 6; i++) {
+                const unitKey = Math.random() < 0.5 ? 'redDwarf' : 'yellowDwarf';
+                playerUnits.push(new Unit('player', unitTypes[unitKey], selectedLane));
+            }
+            synth.triggerAttackRelease("C5", "4n");
+        }},
+        timewarp: { name: '⏳時間扭曲', cooldown: 75 * 60, currentCooldown: 0, effect: () => {
+            timeWarpActiveTimer = 10 * 60;
+            timeWarpSynth.triggerAttackRelease("A1", "1.5s");
+            tickLoop.start(0);
+        }}
+    };
+
+    // 單位設定
+    const unitTypes = {
+        redDwarf: { id: 'redDwarf', name: '紅矮星', color: '#ff6b6b', radius: 10, hp: 130, attack: 10, speed: 1.2, cost: 50, range: 35, weapon: '⚔️', cooldown: 90 },
+        yellowDwarf: { id: 'yellowDwarf', name: '黃矮星', color: '#fcc419', radius: 12, hp: 60, attack: 15, speed: 1.0, cost: 75, range: 150, weapon: '🏹', cooldown: 90 },
+        whiteDwarf: { id: 'whiteDwarf', name: '白矮星', color: '#f8f9fa', radius: 15, hp: 300, attack: 5, speed: 0.6, cost: 100, range: 30, weapon: '🛡️', cooldown: 90 },
+        blueSupergiant: { id: 'blueSupergiant', name: '藍色大球', color: '#00BFFF', radius: 22, hp: 800, attack: 30, speed: 0.5, cost: 900, range: 200, weapon: '🌟', aoe: 85, cooldown: 11 },
+        blackHole: { id: 'blackHole', name: '黑洞', color: '#212529', radius: 10, hp: 120, attack: 8, speed: 0.9, range: 35, weapon: '⚔️', reward: 60, cooldown: 90 },
+        pulsar: { id: 'pulsar', name: '脈衝星', color: '#cc5de8', radius: 12, hp: 70, attack: 12, speed: 1.1, range: 150, weapon: '🏹', reward: 100, cooldown: 90 },
+        brownDwarf: { id: 'brownDwarf', name: '棕矮星', color: '#864444', radius: 15, hp: 280, attack: 4, speed: 0.55, range: 30, weapon: '🛡️', reward: 160, cooldown: 90 },
+    };
+    
+    // 設置路徑點
+    function setupWaypoints() {
+        const w = canvas.width; const h = canvas.height;
+        const groundLevel = h * 0.7; const topPathY = h * 0.4; const bottomPathY = h * 0.9;
+        const startPoint = { x: w * 0.1, y: groundLevel }; const splitPoint = { x: w * 0.25, y: groundLevel };
+        const mergePoint = { x: w * 0.75, y: groundLevel }; const endPoint = { x: w * 0.9, y: groundLevel };
+        const topLaneMid = { x: w * 0.5, y: topPathY }; const bottomLaneMid = { x: w * 0.5, y: bottomPathY };
+        waypoints = {
+            player: { top: [startPoint, splitPoint, topLaneMid, mergePoint, endPoint], bottom: [startPoint, splitPoint, bottomLaneMid, mergePoint, endPoint] },
+            enemy: { top: [...[startPoint, splitPoint, topLaneMid, mergePoint, endPoint]].reverse(), bottom: [...[startPoint, splitPoint, bottomLaneMid, mergePoint, endPoint]].reverse() }
+        };
+    }
+    
+    // 繪製路徑
+    function drawPaths() {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx.lineWidth = 3; ctx.setLineDash([5, 15]);
+        for (const lane of ['top', 'bottom']) {
+            ctx.beginPath(); ctx.moveTo(waypoints.player[lane][0].x, waypoints.player[lane][0].y);
+            for (let i = 1; i < waypoints.player[lane].length; i++) { ctx.lineTo(waypoints.player[lane][i].x, waypoints.player[lane][i].y); }
+            ctx.stroke();
+        }
+         ctx.setLineDash([]);
+    }
+
+    // 基地類別
+    class Base {
+        constructor(x, y, width, height, hp, team) {
+            this.x = x; this.y = y; this.width = width; this.height = height;
+            this.maxHp = hp; this.hp = hp; this.team = team;
+            this.emoji = team === 'player' ? '🌌' : '🌀';
+            this.skillFlags = { hard50: false, hell70: false, hell40: false, hell15: false };
+            this.isInvincible = false;
+            this.invincibleTimer = 0;
+        }
+        update() {
+            if (this.isInvincible) {
+                this.invincibleTimer--;
+                if (this.invincibleTimer <= 0) {
+                    this.isInvincible = false;
+                }
+            }
+        }
+        draw() {
+            ctx.font = '48px serif'; ctx.fillText(this.emoji, this.x, this.y + this.height);
+            this.drawHpBar();
+            if (this.isInvincible) {
+                ctx.strokeStyle = `rgba(255, 0, 0, ${0.5 + Math.sin(frameCount * 0.1) * 0.2})`;
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        drawHpBar() {
+            const barWidth = 100; const barHeight = 10;
+            const barX = this.x + (this.width / 2) - (barWidth / 2); const barY = this.y - 10;
+            ctx.fillStyle = '#333'; ctx.fillRect(barX, barY, barWidth, barHeight);
+            const hpPercentage = this.hp / this.maxHp;
+            ctx.fillStyle = this.team === 'player' ? '#3b82f6' : '#ef4444';
+            ctx.fillRect(barX, barY, barWidth * hpPercentage, barHeight);
+        }
+        updateHpDisplay() {
+            const hpPercentage = (this.hp / this.maxHp) * 100;
+            if (this.team === 'player') {
+                playerHpBarUI.style.width = `${hpPercentage}%`; playerHpDisplay.textContent = `${Math.ceil(this.hp)} / ${this.maxHp}`;
+            } else {
+                enemyHpBarUI.style.width = `${hpPercentage}%`; enemyHpDisplay.textContent = `${Math.ceil(this.hp)} / ${this.maxHp}`;
+            }
+        }
+        takeDamage(amount) {
+            if (this.isInvincible) return;
+            this.hp -= amount; if (this.hp < 0) this.hp = 0;
+            vfx.push(new VFX(this.x + this.width/2, this.y + this.height/2, 'impact'));
+            this.updateHpDisplay();
+            if (this.team === 'enemy') { this.checkAndTriggerSkills(); }
+            if (this.hp === 0) { gameState = this.team === 'player' ? 'lose' : 'win'; showGameOver(); }
+        }
+        checkAndTriggerSkills() {
+            const hpPercent = (this.hp / this.maxHp) * 100;
+            if (difficulty.name === "困難" && hpPercent <= 50 && !this.skillFlags.hard50) {
+                this.skillFlags.hard50 = true;
+                this.summonReinforcements(20, 2, true);
+            }
+            if (difficulty.name === "地獄") {
+                if (hpPercent <= 70 && !this.skillFlags.hell70) {
+                    this.skillFlags.hell70 = true; this.summonReinforcements(15, 2, true);
+                }
+                if (hpPercent <= 40 && !this.skillFlags.hell40) {
+                    this.skillFlags.hell40 = true; this.summonReinforcements(25, 3, true);
+                }
+                if (hpPercent <= 15 && !this.skillFlags.hell15) {
+                    this.skillFlags.hell15 = true; this.summonReinforcements(40, 5, true);
+                }
+            }
+        }
+        summonReinforcements(count, hpMultiplier, isElite) {
+            showAlert('!! 敵方菁英增援 !!');
+            this.isInvincible = true;
+            this.invincibleTimer = 15 * 60; // 15秒無敵
+            vfx.push(new VFX(this.x + this.width / 2, this.y + this.height / 2, 'enemySkillCast', 100));
+            for (let i = 0; i < count; i++) {
+                const rand = Math.random(); const lane = Math.random() < 0.5 ? 'top' : 'bottom';
+                let unitKey;
+                if (rand < 0.4) unitKey = 'blackHole';
+                else if (rand < 0.7) unitKey = 'pulsar';
+                else unitKey = 'brownDwarf';
+                enemyUnits.push(new Unit('enemy', unitTypes[unitKey], lane, true, hpMultiplier, isElite));
+            }
+        }
+    }
+
+    // 單位類別
+    class Unit {
+        constructor(team, type, lane, isReinforcement = false, hpBuffMultiplier = 1, isElite = false) {
+            this.team = team; this.type = type; this.lane = lane;
+            this.path = waypoints[team][lane]; this.targetWaypointIndex = 1;
+            this.x = this.path[0].x; this.y = this.path[0].y;
+            const hpMultiplier = (team === 'enemy') ? difficulty.enemyHpMultiplier : 1;
+            const attackMultiplier = (team === 'enemy') ? difficulty.enemyAttackMultiplier : 1;
+            this.maxHp = type.hp * hpMultiplier * hpBuffMultiplier; this.hp = this.maxHp;
+            this.attack = type.attack * attackMultiplier * (isElite ? 4 : 1);
+            this.speed = type.speed; this.range = type.range;
+            this.attackCooldown = 0; this.isAttacking = false;
+            this.isInvincible = isReinforcement;
+            this.invincibleTimer = isReinforcement ? 8 * 60 : 0; // 8秒無敵
+            this.isElite = isElite;
+            this.target = null;
+            
+            this.targetSearchInterval = 30;
+            this.targetSearchCooldown = Math.floor(Math.random() * this.targetSearchInterval);
+			
+			this.img = new Image();
+			this.img.src = "data:image/png;base64,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";
+        }
+        draw() {
+			if (this.type.id === "blueSupergiant") {
+				ctx.beginPath();
+				ctx.drawImage(this.img, this.x - 25, this.y - 25, 50, 50);
+			} else {
+				ctx.beginPath(); ctx.arc(this.x, this.y, this.type.radius, 0, Math.PI * 2);
+				ctx.fillStyle = this.type.color;
+			}
+		
+            const totalUnits = playerUnits.length + enemyUnits.length;
+            
+            if (gameSettings.showShadows && (totalUnits < 40 || this.isElite)) {
+                ctx.shadowColor = this.type.name === '黑洞' ? '#9333ea' : this.type.color;
+                ctx.shadowBlur = this.type.name === '黑洞' ? 15 : 10;
+            }
+            ctx.fill(); ctx.shadowBlur = 0;
+
+            if (this.type.weapon) {
+                ctx.font = '16px sans-serif';
+                const weaponXOffset = this.team === 'player' ? this.type.radius - 2 : -this.type.radius - 12;
+                ctx.fillText(this.type.weapon, this.x + weaponXOffset, this.y + 6);
+            }
+            if (this.isElite) {
+                ctx.font = '14px sans-serif';
+                ctx.fillText('👑', this.x - 7, this.y - this.type.radius - 5);
+            }
+            if (this.isInvincible) {
+                ctx.strokeStyle = `rgba(255, 0, 0, ${0.5 + Math.sin(frameCount * 0.1) * 0.2})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.type.radius + 5, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            this.drawHpBar();
+        }
+        drawHpBar() {
+            const barWidth = 30; const barHeight = 4;
+            const barX = this.x - 15; const barY = this.y - (this.type.radius + 10);
+            ctx.fillStyle = '#333'; ctx.fillRect(barX, barY, barWidth, barHeight);
+            const hpPercentage = this.hp / this.maxHp;
+            ctx.fillStyle = this.team === 'player' ? '#3b82f6' : '#ef4444';
+            ctx.fillRect(barX, barY, barWidth * hpPercentage, barHeight);
+        }
+        
+        update() {
+            if (this.isInvincible) { this.invincibleTimer--; if (this.invincibleTimer <= 0) this.isInvincible = false; }
+            if (this.attackCooldown > 0) this.attackCooldown--;
+            if (this.targetSearchCooldown > 0) this.targetSearchCooldown--;
+
+            this.isAttacking = false;
+            
+            if (this.targetSearchCooldown <= 0 || !this.target || this.target.hp <= 0) {
+                this.target = this.findClosestUnit();
+                if (!this.target) {
+                    this.target = this.findBaseIfInRange();
+                }
+                this.targetSearchCooldown = this.targetSearchInterval;
+            }
+
+            if (this.target) {
+                const targetX = this.target.width ? this.target.x + this.target.width / 2 : this.target.x;
+                const targetY = this.target.height ? this.target.y + this.target.height / 2 : this.target.y;
+                const distance = Math.hypot(targetX - this.x, targetY - this.y);
+                const effectiveRange = this.range + (this.target.type ? this.target.type.radius : 0) + (this.target.width ? this.target.width / 2 : 0);
+
+                if (distance <= effectiveRange) {
+                    this.isAttacking = true;
+                    if (this.attackCooldown === 0) {
+                        if (this.type.weapon === '🏹' || this.type.weapon === '🌟') { 
+                             projectiles.push(new Projectile(this, this.target, this.type, this.team));
+                        } else { 
+                            this.target.takeDamage(this.attack);
+                            vfx.push(new VFX(targetX, targetY, 'slash', 15, this.team));
+                        }
+                        let currentCooldown = this.type.cooldown || 90;
+                        if (this.isElite) currentCooldown /= 2;
+                        this.attackCooldown = currentCooldown;
+                    }
+                }
+            }
+            
+            if (!this.isAttacking) { this.move(); }
+        }
+
+        move() {
+            if (this.targetWaypointIndex >= this.path.length) return;
+            const targetWaypoint = this.path[this.targetWaypointIndex];
+            const dx = targetWaypoint.x - this.x; const dy = targetWaypoint.y - this.y;
+            const distance = Math.hypot(dx, dy);
+            const currentSpeed = this.speed * (timeWarpActiveTimer > 0 && this.team === 'enemy' ? 0.1 : 1);
+            if (distance < currentSpeed) {
+                this.x = targetWaypoint.x; this.y = targetWaypoint.y; this.targetWaypointIndex++;
+            } else {
+                this.x += (dx / distance) * currentSpeed; this.y += (dy / distance) * currentSpeed;
+            }
+        }
+        isOnSharedPath() { return this.targetWaypointIndex <= 1 || this.targetWaypointIndex >= 4; }
+        
+        findClosestUnit() {
+            const opponents = this.team === 'player' ? enemyUnits : playerUnits;
+            let closestOpponent = null;
+            let minDistance = Infinity;
+            for (const opponent of opponents) {
+                const canEngage = (this.lane === opponent.lane) || (this.isOnSharedPath() && opponent.isOnSharedPath());
+                if (!canEngage) continue;
+                const distance = Math.hypot(opponent.x - this.x, opponent.y - this.y);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestOpponent = opponent;
+                }
+            }
+            return closestOpponent;
+        }
+
+        findBaseIfInRange() {
+            const targetBase = this.team === 'player' ? enemyBase : playerBase;
+            if (this.targetWaypointIndex > 3) {
+                return targetBase;
+            }
+            return null;
+        }
+
+        takeDamage(amount) {
+            if (this.isInvincible) return;
+            this.hp -= amount; vfx.push(new VFX(this.x, this.y, 'impact'));
+            if (this.type.weapon === '🛡️') { vfx.push(new VFX(this.x, this.y, 'shield', this.type.radius)); }
+        }
+    }
+
+    // 投射物類別
+    class Projectile {
+        constructor(attacker, target, attackerType, attackerTeam) {
+            this.x = attacker.x; this.y = attacker.y; this.target = target;
+            this.speed = 5; this.damage = attackerType.attack; this.color = attackerType.color;
+            this.attackerType = attackerType; this.attackerTeam = attackerTeam;
+        }
+        update() {
+            const targetX = this.target.width ? this.target.x + this.target.width / 2 : this.target.x;
+            const targetY = this.target.height ? this.target.y + this.target.height / 2 : this.target.y;
+            const dx = targetX - this.x; const dy = targetY - this.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance < this.speed) {
+                if (this.attackerType.name === '藍色大球') {
+                    vfx.push(new VFX(targetX, targetY, 'explosion', this.attackerType.aoe, this.attackerType.color));
+                }
+                this.target.takeDamage(this.damage);
+                this.hp = 0;
+            } else { this.x += (dx / distance) * this.speed; this.y += (dy / distance) * this.speed; }
+        }
+        draw() {
+            ctx.beginPath(); ctx.moveTo(this.x, this.y);
+            const dx = this.target.x - this.x; const dy = this.target.y - this.y;
+            const distance = Math.hypot(dx, dy);
+            ctx.lineTo(this.x - (dx / distance) * 10, this.y - (dy / distance) * 10);
+            ctx.strokeStyle = this.color; ctx.lineWidth = this.attackerType.aoe ? 4 : 2;
+            ctx.stroke();
+        }
+    }
+
+    // 特效類別
+    class VFX {
+        constructor(x, y, type, size = 10, extra = null) {
+            this.x = x; this.y = y; this.type = type; this.duration = 20;
+            this.size = size; this.extra = extra;
+        }
+        update() { this.duration--; }
+        draw() {
+            if (!gameSettings.showVFX) return; // 根據設定決定是否繪製特效
+            ctx.globalAlpha = this.duration / 20;
+            if (this.type === 'slash') {
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.beginPath();
+                const startAngle = this.extra === 'player' ? 0.8 * Math.PI : -0.2 * Math.PI;
+                const endAngle = this.extra === 'player' ? 1.2 * Math.PI : 0.2 * Math.PI;
+                ctx.arc(this.x, this.y, 15, startAngle, endAngle, this.extra === 'enemy');
+                ctx.stroke();
+            } else if (this.type === 'impact') {
+                ctx.fillStyle = '#ffc107';
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + (frameCount * 0.1);
+                    const length = (1 - this.duration / 20) * 20;
+                    ctx.fillRect(this.x + Math.cos(angle) * length, this.y + Math.sin(angle) * length, 4, 4);
+                }
+            } else if (this.type === 'shield') {
+                ctx.strokeStyle = `rgba(248, 249, 250, ${0.5 + Math.sin(frameCount * 0.2) * 0.3})`; ctx.lineWidth = 4; ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2); ctx.stroke();
+            } else if (this.type === 'explosion') {
+                const progress = 1 - this.duration / 20;
+                ctx.fillStyle = 'white'; ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.3 * progress, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = this.extra; ctx.lineWidth = 8 * (this.duration / 20); ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * progress, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = this.extra;
+                for(let i = 0; i < 10; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * this.size * progress;
+                    ctx.fillRect(this.x + Math.cos(angle) * dist, this.y + Math.sin(angle) * dist, 3, 3);
+                }
+            } else if (this.type === 'meteorStrike') {
+                const progress = 1 - this.duration / 20;
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.8)'; ctx.beginPath();
+                ctx.arc(this.x, this.y, 25 * progress, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; ctx.lineWidth = 5 * (this.duration/20);
+                ctx.beginPath();
+                ctx.moveTo(this.x - 20 * progress, this.y); ctx.lineTo(this.x + 20 * progress, this.y);
+                ctx.moveTo(this.x, this.y - 20 * progress); ctx.lineTo(this.x, this.y + 20 * progress);
+                ctx.stroke();
+            } else if (this.type === 'enemySkillCast') {
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 8 * (this.duration / 20);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * (1 - this.duration / 20), 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    let playerBase, enemyBase;
+
+    function init(selectedDifficulty) {
+        difficulty = selectedDifficulty;
+        gameContainer.classList.remove('hidden'); mainMenu.classList.add('hidden');
+        const container = document.getElementById('game-container');
+        canvas.width = container.clientWidth; canvas.height = canvas.width * 0.4;
+        money = difficulty.startingMoney;
+        playerUnits = []; enemyUnits = []; projectiles = []; vfx = [];
+        frameCount = 0; gameState = 'playing'; selectedLane = 'top';
+        timeWarpActiveTimer = 0;
+        topLaneButton.classList.add('active-lane'); bottomLaneButton.classList.remove('active-lane');
+        Object.values(skills).forEach(skill => skill.currentCooldown = 0);
+        
+        setupWaypoints();
+        const playerSpawnPoint = waypoints.player.top[0]; const enemySpawnPoint = waypoints.enemy.top[0];
+        const baseHp = 2000;
+        playerBase = new Base(playerSpawnPoint.x - 70, playerSpawnPoint.y - 70, 80, 70, baseHp, 'player');
+        enemyBase = new Base(enemySpawnPoint.x - 10, enemySpawnPoint.y - 70, 80, 70, baseHp * difficulty.enemyBaseHpMultiplier, 'enemy');
+        playerBase.hp = playerBase.maxHp; enemyBase.hp = enemyBase.maxHp;
+        
+        playerBase.updateHpDisplay(); enemyBase.updateHpDisplay();
+        gameOverModal.classList.add('hidden');
+
+        if(gameLoopId) cancelAnimationFrame(gameLoopId);
+        gameLoop();
+    }
+    
+    let gameLoopId;
+    function gameLoop() {
+        if (gameState !== 'playing') { cancelAnimationFrame(gameLoopId); return; }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawPaths();
+        frameCount++;
+
+        if (timeWarpActiveTimer > 0) {
+            timeWarpActiveTimer--;
+            timewarpIndicator.classList.remove('hidden');
+            timewarpIndicator.textContent = `⏳ ${Math.ceil(timeWarpActiveTimer / 60)}s`;
+            if (timeWarpActiveTimer === 0) {
+                tickLoop.stop();
+            }
+        } else {
+            timewarpIndicator.classList.add('hidden');
+        }
+
+        if (frameCount % 120 === 0) money += 25;
+        
+        let currentSpawnRate = difficulty.enemySpawnRate;
+        if (timeWarpActiveTimer > 0) {
+            currentSpawnRate *= 3; // 扭曲時出兵變慢
+        }
+        if (frameCount > 300 && frameCount % Math.round(currentSpawnRate) === 0) {
+            const rand = Math.random(); const lane = Math.random() < 0.5 ? 'top' : 'bottom';
+            let unitKey;
+            if (rand < 0.4) unitKey = 'blackHole';
+            else if (rand < 0.8) unitKey = 'pulsar';
+            else unitKey = 'brownDwarf';
+            enemyUnits.push(new Unit('enemy', unitTypes[unitKey], lane));
+        }
+        
+        playerBase.update();
+        enemyBase.update();
+        updateAndDraw(playerUnits, false); updateAndDraw(enemyUnits, true);
+        updateAndDraw(projectiles, false); updateAndDraw(vfx, false);
+        updateSkills();
+
+        playerBase.draw(); enemyBase.draw();
+        moneyDisplay.textContent = money;
+        updateUnitCounts();
+        updateButtons();
+        
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+    
+    function updateAndDraw(arr, isEnemyTeam = false) {
+        for (let i = arr.length - 1; i >= 0; i--) {
+            const item = arr[i];
+            item.update(); item.draw();
+            if (item.duration <= 0 || item.hp <= 0) {
+                if (isEnemyTeam && item.hp <= 0) { money += item.type.reward || 0; }
+                arr.splice(i, 1);
+            }
+        }
+    }
+    
+    function updateSkills() {
+        for (const key in skills) {
+            const skill = skills[key];
+            const button = skillButtons[key];
+            if (skill.currentCooldown > 0) {
+                skill.currentCooldown--;
+                button.disabled = true;
+                button.textContent = `${Math.ceil(skill.currentCooldown / 60)}s`;
+            } else {
+                button.disabled = false;
+                button.textContent = skill.name;
+            }
+        }
+    }
+
+    function updateUnitCounts() {
+        const pCounts = { redDwarf: 0, whiteDwarf: 0, yellowDwarf: 0, blueSupergiant: 0 };
+        playerUnits.forEach(u => { if(pCounts[u.type.id] !== undefined) pCounts[u.type.id]++; });
+        playerUnitCountsDisplay.innerHTML = `
+            <span class="text-blue-300">我方: ${playerUnits.length} | </span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.redDwarf.color}; border-radius: 50%;"></span> ${pCounts.redDwarf}</span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.whiteDwarf.color}; border-radius: 50%;"></span> ${pCounts.whiteDwarf}</span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.yellowDwarf.color}; border-radius: 50%;"></span> ${pCounts.yellowDwarf}</span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.blueSupergiant.color}; border-radius: 50%;"></span> ${pCounts.blueSupergiant}</span>
+        `;
+
+        const eCounts = { blackHole: 0, brownDwarf: 0, pulsar: 0, elite: 0 };
+        enemyUnits.forEach(u => { 
+            if(eCounts[u.type.id] !== undefined) eCounts[u.type.id]++;
+            if(u.isElite) eCounts.elite++;
+        });
+        enemyUnitCountsDisplay.innerHTML = `
+            <span class="text-red-300">敵方: ${enemyUnits.length} | </span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.blackHole.color}; border-radius: 50%;"></span> ${eCounts.blackHole}</span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.brownDwarf.color}; border-radius: 50%;"></span> ${eCounts.brownDwarf}</span>
+            <span class="inline-flex items-center gap-1 mx-1"><span style="display: inline-block; width: 10px; height: 10px; background-color: ${unitTypes.pulsar.color}; border-radius: 50%;"></span> ${eCounts.pulsar}</span>
+            ${eCounts.elite > 0 ? `<span class="inline-flex items-center gap-1 mx-1">💀 ${eCounts.elite}</span>` : ''}
+        `;
+    }
+
+    function updateButtons() {
+        for(const unitKey in unitButtons){
+            if(unitButtons[unitKey]){
+                unitButtons[unitKey].disabled = money < unitTypes[unitKey].cost;
+            }
+        }
+    }
+
+    function spawnPlayerUnit(unitKey) {
+        const type = unitTypes[unitKey];
+        if (money >= type.cost) {
+            money -= type.cost;
+            playerUnits.push(new Unit('player', type, selectedLane));
+            updateButtons();
+            synth.triggerAttackRelease("C4", "8n");
+        }
+    }
+    
+    function showAlert(message) {
+        alertMessage.textContent = message;
+        alertMessage.classList.remove('hidden', 'alert-active');
+        void alertMessage.offsetWidth;
+        alertMessage.classList.add('alert-active');
+    }
+
+    function showGameOver() {
+        gameState = 'over';
+        if (playerBase.hp <= 0) {
+            gameOverTitle.textContent = '☠️ 星系毀滅 ☠️';
+            gameOverTitle.className = 'text-4xl font-bold mb-4 text-red-500';
+            gameOverMessage.textContent = '我方星系已被吞噬，再挑戰一次吧！';
+        } else {
+            gameOverTitle.textContent = '🎉 征服星系！ 🎉';
+            gameOverTitle.className = 'text-4xl font-bold mb-4 text-yellow-300';
+            gameOverMessage.textContent = '恭喜你，成功擊潰了敵方星系！';
+        }
+        gameOverModal.classList.remove('hidden');
+    }
+
+    // --- Tooltip Functions ---
+    function showUnitTooltip(event) {
+        const button = event.target.closest('button'); if (!button) return;
+        const unitKey = button.dataset.unit; if (!unitKey) return;
+        const unitData = unitTypes[unitKey];
+        unitTooltip.innerHTML = `<strong class="font-bold text-lg">${unitData.name}</strong><br>質量: ${unitData.hp} | 能量: ${unitData.attack}<br>速度: ${unitData.speed} | 範圍: ${unitData.range}`;
+        unitTooltip.style.display = 'block';
+    }
+    function hideUnitTooltip() { unitTooltip.style.display = 'none'; }
+    function moveUnitTooltip(event) {
+        unitTooltip.style.left = `${event.pageX + 15}px`;
+        unitTooltip.style.top = `${event.pageY + 15}px`;
+    }
+
+    // --- Event Listeners ---
+    Object.keys(unitButtons).forEach(key => {
+        unitButtons[key].addEventListener('click', () => spawnPlayerUnit(key));
+        unitButtons[key].addEventListener('mouseenter', showUnitTooltip);
+        unitButtons[key].addEventListener('mouseleave', hideUnitTooltip);
+        unitButtons[key].addEventListener('mousemove', moveUnitTooltip);
+    });
+    
+    Object.keys(skillButtons).forEach(key => {
+        skillButtons[key].addEventListener('click', () => {
+            const skill = skills[key];
+            if (skill.currentCooldown <= 0) {
+                skill.effect();
+                skill.currentCooldown = skill.cooldown;
+            }
+        });
+    });
+    
+    function selectLane(lane) {
+        selectedLane = lane;
+        if (lane === 'top') {
+            topLaneButton.classList.add('active-lane');
+            bottomLaneButton.classList.remove('active-lane');
+        } else {
+            bottomLaneButton.classList.add('active-lane');
+            topLaneButton.classList.remove('active-lane');
+        }
+    }
+
+    topLaneButton.addEventListener('click', () => selectLane('top'));
+    bottomLaneButton.addEventListener('click', () => selectLane('bottom'));
+
+    window.addEventListener('keydown', (e) => {
+        if (gameState !== 'playing') return;
+        if (e.key.toLowerCase() === 'w') selectLane('top');
+        if (e.key.toLowerCase() === 's') selectLane('bottom');
+    });
+
+    restartButton.addEventListener('click', () => {
+        gameOverModal.classList.add('hidden');
+        gameContainer.classList.add('hidden');
+        mainMenu.classList.remove('hidden');
+        alertMessage.classList.add('hidden');
+    });
+    
+    Object.keys(difficultyButtons).forEach(key => {
+        difficultyButtons[key].addEventListener('click', () => {
+            Tone.start();
+            setupSynths();
+            init(difficultySettings[key]);
+        });
+    });
+    
+    // Menu navigation
+    instructionsButton.addEventListener('click', () => {
+        mainMenu.classList.add('hidden');
+        instructionsModal.classList.remove('hidden');
+    });
+    backToMenuButton.addEventListener('click', () => {
+        instructionsModal.classList.add('hidden');
+        mainMenu.classList.remove('hidden');
+    });
+    
+    settingsButton.addEventListener('click', () => {
+        mainMenu.classList.add('hidden');
+        settingsModal.classList.remove('hidden');
+    });
+    backToMenuFromSettingsButton.addEventListener('click', () => {
+        settingsModal.classList.add('hidden');
+        mainMenu.classList.remove('hidden');
+    });
+
+    // Settings toggles
+    toggleShadows.addEventListener('change', (e) => {
+        gameSettings.showShadows = e.target.checked;
+    });
+    toggleVFX.addEventListener('change', (e) => {
+        gameSettings.showVFX = e.target.checked;
+    });
+    
+    // In-game pause menu
+    pauseButton.addEventListener('click', () => {
+        if (gameState === 'playing') {
+            gameState = 'paused';
+            pauseModal.classList.remove('hidden');
+            cancelAnimationFrame(gameLoopId);
+        }
+    });
+
+    resumeButton.addEventListener('click', () => {
+        if (gameState === 'paused') {
+            gameState = 'playing';
+            pauseModal.classList.add('hidden');
+            gameLoop();
+        }
+    });
+
+    restartIngameButton.addEventListener('click', () => {
+        pauseModal.classList.add('hidden');
+        Tone.start();
+        init(difficulty);
+    });
+
+    backToMenuIngameButton.addEventListener('click', () => {
+        pauseModal.classList.add('hidden');
+        gameContainer.classList.add('hidden');
+        mainMenu.classList.remove('hidden');
+        alertMessage.classList.add('hidden');
+    });
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+        if (gameState !== 'playing') return;
+        let oldWidth = canvas.width;
+        let oldHeight = canvas.height;
+        
+        const container = document.getElementById('game-container');
+        canvas.width = container.clientWidth;
+        canvas.height = canvas.width * 0.4;
+
+        let widthRatio = canvas.width / oldWidth;
+        let heightRatio = canvas.height / oldHeight;
+
+        const allObjects = [...playerUnits, ...enemyUnits, ...projectiles, ...vfx, playerBase, enemyBase];
+        allObjects.forEach(obj => {
+            obj.x *= widthRatio;
+            obj.y *= heightRatio;
+        });
+
+        setupWaypoints();
+    });
+
+    </script>
+</body>
+</html>
