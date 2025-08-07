@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天璇 Merak</title>
+    <!-- 引入 Tailwind CSS，這是一個流行的 CSS 框架，讓設計更簡單 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts 的字體，讓頁面更好看 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* 在這裡設定網頁字體 */
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- 
+      背景圖片設定
+      將下面的 'https://placehold.co/1920x1080/a7c5ff/333333?text=背景圖片' 換成你自己的圖片連結。
+      建議做法：
+      1. 在你的 GitHub 專案中建立一個 'images' 資料夾。
+      2. 將你的背景圖片 (例如 background.jpg) 上傳到這個資料夾。
+      3. 將下面的連結改為相對路徑，例如 './images/background.jpg'。
+    -->
+    <div class="bg-cover bg-center bg-fixed" style="background-image: url('./image/merak.png')">
+        
+        <!-- 主要內容容器，使用 flex 置中 -->
+        <div class="min-h-screen flex items-center justify-center p-4">
+            
+            <!-- 
+              個人資訊卡片
+              使用半透明背景和模糊效果，讓卡片在背景上更突出
+            -->
+            <div class="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 text-center">
+                
+                <!-- 
+                  頭貼圖片
+                  將下面的 'https://placehold.co/150x150/d1e3ff/333333?text=頭貼' 換成你自己的頭貼連結。
+                  建議做法和背景圖片一樣，使用相對路徑，例如 './images/avatar.png'。
+                -->
+                <img src="./image/merak_sleep.png" alt="個人頭貼" class="w-32 h-32 rounded-full mx-auto mb-4 shadow-lg border-4 border-white">
+                
+                <!-- 姓名 -->
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                    <!-- 在這裡換成你的名字 -->
+                    天璇 Merak
+                </h1>
+                
+                <!-- 自我介紹 -->
+                <p class="text-gray-600 mb-6">
+                    <!-- 在這裡寫下你的自我介紹 -->
+                    在夜空中默默注視著大家的一顆恆星，因想要分享自己喜歡的事物而成為了vtuber；圍棋、程式設計、數位IC設計、鋼琴、作曲編曲、天文、Tetris都是我的興趣！
+                </p>
+                
+                <!-- 專案連結區塊 -->
+                <div class="space-y-4">
+                    
+                    <!-- 專案一 -->
+                    <a href="https://你的GitHub使用者名稱.github.io/你的專案一倉庫名稱/" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">
+                        <!-- 將 '你的專案一網址' 替換成你實際的 GitHub Pages 連結 -->
+                        專案一：待辦事項清單
+                    </a>
+                    
+                    <!-- 專案二 -->
+                    <a href="https://你的GitHub使用者名稱.github.io/你的專案二倉庫名稱/" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">
+                        <!-- 將 '你的專案二網址' 替換成你實際的 GitHub Pages 連結 -->
+                        專案二：天氣應用
+                    </a>
+                    
+                    <!-- 專案三 -->
+                    <a href="https://你的GitHub使用者名稱.github.io/你的專案三倉庫名稱/" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="block w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">
+                        <!-- 將 '你的專案三網址' 替換成你實際的 GitHub Pages 連結 -->
+                        專案三：個人部落格
+                    </a>
+                    
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
