@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大球養成日記</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: manipulation;
+        }
+        .progress-bar-container {
+            background-color: #e0e0e0;
+            border-radius: 9999px;
+            overflow: hidden;
+            height: 1.75rem;
+            border: 2px solid #a0a0a0;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out, color 0.5s;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.875rem;
+            line-height: 1.75rem;
+            white-space: nowrap; /* Prevent text from wrapping */
+        }
+        .action-button {
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out, background-color 0.2s;
+        }
+        .action-button:active {
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .action-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .sub-menu {
+            display: none;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        }
+        .is-active {
+            display: grid;
+        }
+    </style>
+</head>
+<body class="bg-blue-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-lg mx-auto">
+        <!-- Start Screen -->
+        <div id="start-screen" class="bg-white rounded-2xl shadow-xl p-8 text-center space-y-6">
+            <img src="./img/merak_sit.png" alt="坐著的大球" class="max-h-48 mx-auto object-contain" onerror="this.onerror=null;this.src='https://placehold.co/200x200/a0e0ff/333333?text=大球!&font=noto-sans-tc';">
+            <h1 class="text-4xl font-bold text-gray-800">大球養成日記</h1>
+            <div class="text-left bg-gray-100 p-4 rounded-lg space-y-2">
+                <h2 class="font-bold text-lg">遊戲說明：</h2>
+                <p class="text-gray-600">這顆看似普通的大球，其實是某顆恆星的化身。在限定天數內與大球培養感情，提升好感度來解鎖更多有趣的互動吧！</p>
+            </div>
+            <div class="space-y-3">
+                <h3 class="font-bold text-xl">選擇遊戲天數：</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button data-days="5" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600">短期 (5天)</button>
+                    <button data-days="10" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600">中期 (10天)</button>
+                    <button data-days="20" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600">長期 (20天)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen (Initially hidden) -->
+        <div id="game-screen" class="w-full bg-white rounded-2xl shadow-xl p-6 space-y-4 hidden">
+            
+            <div class="flex justify-between items-center text-gray-700 font-bold">
+                <div id="day-counter" class="text-lg">第 1 / 10 天</div>
+                <div id="action-points-counter" class="text-lg">行動力: 3</div>
+            </div>
+
+            <div class="bg-gray-100 rounded-lg flex justify-center items-center p-4 min-h-[250px]">
+                <img id="merak-image" src="./img/merak_sit.png" alt="坐著的大球" class="max-h-56 object-contain" onerror="this.onerror=null;this.src='https://placehold.co/300x300/a0e0ff/333333?text=大球!&font=noto-sans-tc';">
+            </div>
+            <div id="message-box" class="text-center text-gray-600 font-medium min-h-[3.5rem] p-1 flex items-center justify-center"></div>
+
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-gray-700">好感度 ❤️</span>
+                        <span id="affinity-level-display" class="font-bold text-pink-500">LV. 1</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="affinity-bar" class="progress-bar bg-pink-400"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="font-bold text-gray-700">飽食度</span>
+                    <div class="progress-bar-container">
+                        <div id="hunger-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="font-bold text-gray-700">心情</span>
+                    <div class="progress-bar-container">
+                        <div id="happiness-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="font-bold text-gray-700">清潔度</span>
+                    <div class="progress-bar-container">
+                        <div id="cleanliness-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 pt-2">
+                <button id="feed-btn" class="action-button bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600">餵食</button>
+                <button id="interact-btn" class="action-button bg-yellow-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-yellow-600">互動</button>
+                <button id="clean-btn" class="action-button bg-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-600">清潔</button>
+            </div>
+
+            <div class="min-h-[80px]">
+                <div id="feed-submenu" class="sub-menu gap-2"></div>
+                <div id="interact-submenu" class="sub-menu gap-2"></div>
+            </div>
+            
+            <button id="continue-btn" class="action-button w-full bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-indigo-600 hidden">下一步 (Z)</button>
+            <button id="next-day-btn" class="action-button w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-gray-800 hidden">結束這一天 (Z)</button>
+        </div>
+
+        <!-- End Screen (Initially hidden) -->
+        <div id="end-screen" class="bg-white rounded-2xl shadow-xl p-8 text-center space-y-6 hidden">
+            <img id="end-image" src="./img/merak_rocket.png" alt="結局畫面" class="max-h-48 mx-auto object-contain" onerror="this.onerror=null;this.src='https://placehold.co/200x200/a0e0ff/333333?text=❤️&font=noto-sans-tc';">
+            <h1 id="end-title" class="text-4xl font-bold text-gray-800">旅程結束</h1>
+            <p id="end-description" class="text-gray-600 text-lg"></p>
+            <div class="text-center bg-gray-100 p-4 rounded-lg">
+                <p class="text-gray-800 text-2xl font-bold">最終好感度: <span id="final-affinity"></span></p>
+            </div>
+            <div class="text-left bg-gray-50 p-4 rounded-lg">
+                 <h2 class="font-bold text-lg mb-2">與大球的回憶：</h2>
+                 <div id="action-summary" class="text-gray-600 space-y-1"></div>
+                 <p id="quest-summary" class="text-gray-800 font-bold mt-2"></p>
+            </div>
+            <button id="restart-game-btn" class="action-button w-full bg-purple-500 text-white font-bold py-4 px-4 rounded-lg shadow-md hover:bg-purple-600 text-xl">重新開始</button>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Game Config ---
+        const affinityLevels = [20, 35, 60, 100, 160, 240, 340, 480, 800, 1200]; 
+        const FISHING_CATCHES = [
+            { name: '小丑魚', type: 'common', xp: 15, happiness: 15, message: '釣到了一隻活潑的小丑魚！' },
+            { name: '河豚', type: 'common', xp: 15, happiness: 15, message: '釣到了一隻氣噗噗的河豚！' },
+            { name: '太空垃圾', type: 'junk', xp: 1, happiness: -10, message: '釣到了一塊...太空垃圾...' },
+            { name: '皇帶魚', type: 'rare', xp: 80, happiness: 50, message: '天啊！是傳說中的皇帶魚！大球看起來超級興奮！' }
+        ];
+        const DAILY_QUESTS = [
+            { hint: "今天大球看起來有點寂寞...", actionKey: "hug", condition: (stats) => stats.happiness < 70 },
+            { hint: "大球的肚子好像在發出微弱的聲響...", actionKeys: ["almond", "chocolate", "onigiri", "pancake", "spring_roll", "zhongzi", "tangyuan"], condition: (stats) => stats.hunger < 70 },
+            { hint: "大球今天看起來無精打采的...", actionKey: "sleep", condition: (stats) => true },
+            { hint: "大球的身體似乎有點黯淡...", actionKey: "brush", condition: (stats) => stats.cleanliness < 70 },
+            { hint: "大球今天似乎很想向外探索...", actionKeys: ["fly", "surfing", "excavator"], condition: (stats) => true },
+            { hint: "大球今天看起來熱呼呼的...", actionKey: "snowman", condition: (stats) => true },
+            { hint: "大球今天看起來有點冷，縮成了一團...", actionKeys: ["fire", "hug", "tangyuan"], condition: (stats) => true }
+        ];
+
+        // --- Game State ---
+        let state = {};
+
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        const startGameBtns = document.querySelectorAll('.start-game-btn');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const dayCounter = document.getElementById('day-counter');
+        const actionPointsCounter = document.getElementById('action-points-counter');
+        const merakImage = document.getElementById('merak-image');
+        const messageBox = document.getElementById('message-box');
+        const affinityLevelDisplay = document.getElementById('affinity-level-display');
+        const affinityBar = document.getElementById('affinity-bar');
+        const hungerBar = document.getElementById('hunger-bar');
+        const happinessBar = document.getElementById('happiness-bar');
+        const cleanlinessBar = document.getElementById('cleanliness-bar');
+        const feedBtn = document.getElementById('feed-btn');
+        const interactBtn = document.getElementById('interact-btn');
+        const cleanBtn = document.getElementById('clean-btn');
+        const nextDayBtn = document.getElementById('next-day-btn');
+        const continueBtn = document.getElementById('continue-btn');
+        const feedSubmenu = document.getElementById('feed-submenu');
+        const interactSubmenu = document.getElementById('interact-submenu');
+        const finalAffinity = document.getElementById('final-affinity');
+        const actionSummary = document.getElementById('action-summary');
+        const questSummary = document.getElementById('quest-summary');
+        const endImage = document.getElementById('end-image');
+        const endTitle = document.getElementById('end-title');
+        const endDescription = document.getElementById('end-description');
+
+        // --- Action Definitions ---
+        const actions = {
+            // Normal Feed
+            almond: { type: 'feed', img: 'merak_eat_nut.png', hunger: 10, happiness: 2, cleanliness: -2, xp: 5, message: '喀滋喀滋！', label: '杏仁', unlocksAt: 1 },
+            chocolate: { type: 'feed', img: 'merak_chocolate.png', hunger: 15, happiness: 5, cleanliness: -5, xp: 8, message: '大球喜歡巧克力！', label: '巧克力', unlocksAt: 2 },
+            onigiri: { type: 'feed', img: 'merak_onigiri.png', hunger: 22, happiness: 8, cleanliness: -8, xp: 15, message: '吃完飯糰後，大球變成了三角形！', label: '飯糰', unlocksAt: 3 },
+            pancake: { type: 'feed', img: 'merak_eat_pancake.png', hunger: 20, happiness: 5, cleanliness: -5, xp: 12, message: '好好吃的鬆餅！', label: '鬆餅', unlocksAt: 4 },
+            spring_roll: { type: 'feed', img: 'merak_eat_spring_roll.png', hunger: 25, happiness: 10, cleanliness: -10, xp: 18, message: '來自家鄉的懷念好滋味！', label: '潤餅', unlocksAt: 5 },
+            zhongzi: { type: 'feed', img: 'merak_eat_zhongzi.png', hunger: 30, happiness: 10, cleanliness: -10, xp: 25, message: '大球發出了滿足的核融合反應聲。', label: '粽子', unlocksAt: 6 },
+            tangyuan: { type: 'feed', img: 'merak_tangyuan.png', hunger: 35, happiness: 20, cleanliness: -15, xp: 30, message: '泡在溫暖的甜湯裡，大球舒服地發出微光。', label: '泡湯圓', unlocksAt: 8 },
+            // Special Feed
+            book: { type: 'feed', img: 'merak_book.png', hunger: 5, happiness: -20, cleanliness: -5, xp: 1, message: '書...書不好吃...', label: '書', unlocksAt: 3 },
+            disk: { type: 'feed', img: 'merak_eat_disk.png', hunger: 5, happiness: -25, cleanliness: -5, xp: 1, message: '大球的內部構造發出了怪聲。', label: '硬碟', unlocksAt: 4 },
+            note: { type: 'feed', img: 'merak_eat_note.png', hunger: 2, happiness: -10, cleanliness: 0, xp: 1, message: '這不是食物吧？', label: '音符', unlocksAt: 5 },
+            gamepad: { type: 'feed', img: 'merak_eat_gamepad.png', hunger: 5, happiness: -30, cleanliness: -5, xp: 1, message: '嘎嘣脆！但這不是食物...大球的表情有點微妙。', label: '遊戲手把', unlocksAt: 7 },
+            medicine: { type: 'feed', img: 'merak_eat_medicine.png', hunger: -5, happiness: -15, cleanliness: 40, xp: 5, message: '藥好苦...但身體變乾淨了！', label: '藥', unlocksAt: 6 },
+            // Interact
+            poke: { type: 'interact', img: 'merak_poke.png', hunger: 0, happiness: 3, cleanliness: 0, xp: 2, message: '戳了一下，大球的表面泛起了星雲般的漣漪。', label: '戳戳', unlocksAt: 1 },
+            hug: { type: 'interact', img: 'merak_hug.png', hunger: -2, happiness: 15, cleanliness: -5, xp: 10, message: '擁抱時，能感覺到來自恆星的溫暖。', label: '抱抱', unlocksAt: 1 },
+            sleep: { type: 'interact', img: 'merak_sleep.png', hunger: -5, happiness: 10, cleanliness: 5, xp: 8, message: '蓋上棉被，大球發出了安穩的鼾聲。', label: '睡覺', unlocksAt: 2 },
+            fishing: { type: 'interact', img: 'merak_fishing.png', special: 'fishing', label: '釣魚', unlocksAt: 3 },
+            fly: { type: 'interact', img: 'merak_fly.png', hunger: -10, happiness: 20, cleanliness: -5, xp: 22, message: '用呆毛在空中飛行，就像一顆悠哉的彗星。', label: '飛行', unlocksAt: 4 },
+            banana: { type: 'interact', img: 'merak_banana.png', hunger: -5, happiness: 28, cleanliness: 0, xp: 35, message: '香蕉...？雖然有點奇怪，但大球看起來很開心！', label: '香蕉裝', unlocksAt: 4 },
+            cow: { type: 'interact', img: 'merak_cow.png', hunger: -5, happiness: 25, cleanliness: 0, xp: 30, message: '哞～ 穿上牛牛裝的大球真可愛！', label: '裝扮', unlocksAt: 5 },
+            surfing: { type: 'interact', special: 'chance', success: { img: 'merak_surfing.png', hunger: -15, happiness: 40, cleanliness: -10, xp: 50, message: '成功駕馭了浪頭！太帥了！' }, failure: { img: 'merak_surfing2.png', hunger: -5, happiness: -10, cleanliness: -20, xp: 5, message: '噗通！掉進海裡了...'}, label: '衝浪', unlocksAt: 6 },
+            excavator: { type: 'interact', img: 'merak_excavator.png', hunger: -15, happiness: 35, cleanliness: -20, xp: 40, message: '大球開著挖土機，將煩惱像太空垃圾一樣通通清除！', label: '開挖土機', unlocksAt: 7 },
+            fire: { type: 'interact', img: 'merak_fire.png', hunger: -5, happiness: 45, cleanliness: -5, xp: 60, message: '在溫暖的爐火旁，大球的核心也變得暖洋洋的。', label: '烤火', unlocksAt: 8 },
+            snowman: { type: 'interact', img: 'merak_snowman.png', hunger: -10, happiness: 50, cleanliness: 10, xp: 70, message: '大球變成了雪人！冰冰涼涼的好像很舒服。', label: '堆雪人', unlocksAt: 9 },
+            wish: { type: 'interact', img: 'merak_rainbow.png', hunger: 0, happiness: 50, cleanliness: 50, xp: 100, message: '你誠心地向大球許願...「希望可以永遠跟大球在一起...」<br>大球聽到了你的心聲，散發出溫暖的七彩光芒，彷彿整個宇宙都在為你祝福。', label: '許願', unlocksAt: 10 },
+            // Clean
+            brush: { type: 'clean', img: 'merak_brush.png', hunger: -2, happiness: 5, cleanliness: 40, xp: 8, message: '唰唰唰~ 溫柔的幫大球洗了澡<br>清潔過後，大球變得更加閃閃發光了！', label: '清潔' },
+        };
+
+        function resetState() {
+            state = {
+                totalDays: 0,
+                currentDay: 1,
+                actionPoints: 3,
+                isActionInProgress: false,
+                isGameOver: false,
+                affinityLevel: 1,
+                affinityXP: 0,
+                dailyQuest: null,
+                completedQuests: 0,
+                wasSick: false,
+                stats: {
+                    hunger: 80,
+                    happiness: 80,
+                    cleanliness: 80,
+                },
+                actionLog: {},
+                dailyActionHistory: [],
+            };
+        }
+
+        function startGame(days) {
+            resetState();
+            state.totalDays = days;
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            updateUI();
+            setupSubmenus();
+        }
+        
+        function addAffinityXP(amount) {
+            if (amount <= 0 || state.affinityLevel > affinityLevels.length) return;
+            state.affinityXP += amount;
+            
+            let xpForNextLevel = affinityLevels[state.affinityLevel - 1];
+            while (state.affinityXP >= xpForNextLevel && state.affinityLevel <= affinityLevels.length) {
+                state.affinityXP -= xpForNextLevel;
+                state.affinityLevel++;
+                xpForNextLevel = affinityLevels[state.affinityLevel - 1];
+                messageBox.innerHTML = `好感度提升！ LV.${state.affinityLevel}！`;
+                setTimeout(() => { if(messageBox.innerHTML.includes('好感度')) messageBox.innerHTML = ''; }, 2500);
+            }
+        }
+
+        function performAction(actionKey) {
+            if (state.isActionInProgress || state.actionPoints <= 0 || state.isGameOver) return;
+            
+            state.isActionInProgress = true;
+            state.actionPoints--;
+
+            let action = actions[actionKey];
+            let outcome = action;
+            let imageToDisplay = action.img;
+
+            if (action.special === 'chance') {
+                outcome = Math.random() < 0.5 ? action.success : action.failure;
+                imageToDisplay = outcome.img;
+            } else if (action.special === 'fishing') {
+                const rand = Math.random();
+                let catchResult;
+                if (rand > 0.85) { // Rare (15%)
+                    catchResult = FISHING_CATCHES.find(c => c.type === 'rare');
+                } else if (rand > 0.70) { // Junk (15%)
+                    catchResult = FISHING_CATCHES.find(c => c.type === 'junk');
+                } else { // Common (70%)
+                    const commonCatches = FISHING_CATCHES.filter(c => c.type === 'common');
+                    catchResult = { ...action, ...commonCatches[Math.floor(Math.random() * commonCatches.length)] };
+                }
+                outcome = { ...action, ...catchResult };
+                imageToDisplay = action.img;
+            }
+
+            let currentMessage = outcome.message;
+            let xpGain = outcome.xp || 0;
+            let happinessGain = outcome.happiness || 0;
+
+            // Daily Quest Check
+            const quest = state.dailyQuest;
+            if (quest && (quest.actionKey === actionKey || (quest.actionKeys && quest.actionKeys.includes(actionKey)))) {
+                xpGain = Math.round(xpGain * 1.5);
+                let specialMessage = "大球看起來特別開心，似乎正想這麼做呢！";
+
+                if (actionKey === 'medicine' && state.wasSick) {
+                    specialMessage = "吃藥之後，大球看起來好多了！";
+                    state.stats.happiness = Math.min(100, state.stats.happiness + 20);
+                    state.stats.hunger = Math.min(100, state.stats.hunger + 20);
+                    state.wasSick = false;
+                } else if (actionKey === 'hug') {
+                    specialMessage = "你的擁抱給了大球滿滿的能量！";
+                }
+                currentMessage = `${specialMessage}<br>(${outcome.message})`;
+
+                state.dailyQuest = null; // Quest completed
+                state.completedQuests++;
+                if (state.completedQuests === 5) {
+                    setTimeout(() => {
+                        messageBox.innerHTML = "一張小卡片飄了下來...是「大球的感謝信」！<br>『謝謝你總是知道我在想什麼，跟你在一起的每一天都像星空一樣閃亮！』(好感度+100)";
+                        addAffinityXP(100);
+                        updateUI();
+                    }, 2500);
+                } else if (state.completedQuests === 10) {
+                     setTimeout(() => {
+                        messageBox.innerHTML = "又收到一封感謝信！<br>『謝謝你一直以來的溫柔，我好像...越來越喜歡你了。』(好感度+200)";
+                        addAffinityXP(200);
+                        updateUI();
+                    }, 2500);
+                }
+            } else {
+                const timesPerformedToday = state.dailyActionHistory.filter(a => a === actionKey).length;
+                if (timesPerformedToday === 1) {
+                    xpGain = Math.floor(xpGain / 2);
+                    happinessGain = Math.floor(happinessGain / 2);
+                    currentMessage = `大球覺得有點膩了...`;
+                } else if (timesPerformedToday >= 2) {
+                    xpGain = 0;
+                    happinessGain = -10;
+                    currentMessage = `吼！不要一直做一樣的事！`;
+                }
+            }
+            
+            addAffinityXP(xpGain);
+            state.stats.hunger = Math.min(100, Math.max(0, state.stats.hunger + (outcome.hunger || 0)));
+            state.stats.happiness = Math.min(100, Math.max(0, state.stats.happiness + happinessGain));
+            state.stats.cleanliness = Math.min(100, Math.max(0, state.stats.cleanliness + (outcome.cleanliness || 0)));
+            
+            state.actionLog[action.label] = (state.actionLog[action.label] || 0) + 1;
+            state.dailyActionHistory.push(actionKey);
+
+            updateUI(currentMessage);
+            merakImage.src = `./img/${imageToDisplay}`;
+            merakImage.onerror = () => { merakImage.src = `https://placehold.co/300x300/a0e0ff/333333?text=${action.label}&font=noto-sans-tc`; };
+            
+            closeSubmenus();
+            
+            continueBtn.classList.remove('hidden');
+            feedBtn.disabled = true;
+            interactBtn.disabled = true;
+            cleanBtn.disabled = true;
+        }
+
+        function continueAfterAction() {
+            if (state.isGameOver) return;
+            merakImage.src = './img/merak_sit.png';
+            merakImage.onerror = () => { merakImage.src = 'https://placehold.co/300x300/a0e0ff/333333?text=大球!&font=noto-sans-tc'; };
+            
+            if (!messageBox.innerHTML.includes("1.") && !messageBox.innerHTML.includes("2.")) {
+                 messageBox.innerHTML = '';
+            }
+
+            state.isActionInProgress = false;
+            continueBtn.classList.add('hidden');
+            
+            if (!checkBadEnding()) {
+                updateUI();
+            }
+        }
+        
+        function goToNextDay() {
+            if (state.isGameOver) return;
+            if (state.currentDay >= state.totalDays) {
+                gameOver();
+                return;
+            }
+
+            let dailyXPGain = Math.round((state.stats.happiness / 20) + (state.stats.hunger / 25) + (state.stats.cleanliness / 30) - 5);
+            if (dailyXPGain > 0) {
+                 addAffinityXP(dailyXPGain);
+            }
+            
+            state.stats.hunger = Math.max(0, state.stats.hunger - 10);
+            state.stats.happiness = Math.max(0, state.stats.happiness - 15);
+            state.stats.cleanliness = Math.max(0, state.stats.cleanliness - 5);
+            
+            if (checkBadEnding()) return;
+
+            state.currentDay++;
+            state.actionPoints = 3;
+            state.dailyActionHistory = [];
+            state.dailyQuest = null;
+            state.wasSick = false;
+
+            let morningMessages = [];
+            let hasBonusAP = false;
+
+            // Sickness event
+            if (state.affinityLevel >= actions.medicine.unlocksAt && Math.random() < 0.1) { // 10% chance to get sick
+                state.stats.happiness = Math.max(0, state.stats.happiness - 20);
+                state.stats.hunger = Math.max(0, state.stats.hunger - 20);
+                state.dailyQuest = { hint: "大球好像生病了...", actionKey: "medicine" };
+                state.wasSick = true;
+                morningMessages.push(state.dailyQuest.hint);
+            } else {
+                // Bonus action point chance
+                if (state.affinityLevel >= 6 && Math.random() < 0.3) { 
+                    state.actionPoints = 4;
+                    morningMessages.push("大球今天看起來特別有活力！");
+                    hasBonusAP = true;
+                }
+                // Daily quest chance
+                if (Math.random() < 0.6) { // Increased from 0.4
+                    const availableQuests = DAILY_QUESTS.filter(q => {
+                        const actionKey = q.actionKey || q.actionKeys[0];
+                        const isUnlocked = state.affinityLevel >= actions[actionKey].unlocksAt;
+                        const meetsCondition = q.condition(state.stats);
+                        const isNotTiredQuestOnEnergeticDay = !(q.actionKey === 'sleep' && hasBonusAP);
+                        return isUnlocked && meetsCondition && isNotTiredQuestOnEnergeticDay;
+                    });
+
+                    if (availableQuests.length > 0) {
+                        state.dailyQuest = availableQuests[Math.floor(Math.random() * availableQuests.length)];
+                        morningMessages.push(state.dailyQuest.hint);
+                    }
+                }
+            }
+
+            if (morningMessages.length > 0) {
+                messageBox.innerHTML = morningMessages.map((msg, index) => `${morningMessages.length > 1 ? (index + 1) + '. ' : ''}${msg}`).join('<br>');
+            } else {
+                messageBox.innerHTML = '';
+            }
+            
+            updateUI();
+            setupSubmenus();
+        }
+
+        function checkBadEnding() {
+            if (state.stats.hunger <= 0) {
+                gameOver("bad", "因為太餓了，大球離家出走了...");
+                return true;
+            }
+            if (state.stats.happiness <= 0) {
+                gameOver("bad", "因為太難過了，大球離家出走了...");
+                return true;
+            }
+            if (state.stats.cleanliness <= 0) {
+                gameOver("bad", "因為太髒了，大球離家出走了...");
+                return true;
+            }
+            return false;
+        }
+
+        function gameOver(endingType = "normal", message = "") {
+            if (state.isGameOver) return;
+            state.isGameOver = true;
+
+            gameScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            finalAffinity.textContent = `LV. ${state.affinityLevel}`;
+
+            if (endingType === "bad") {
+                endTitle.textContent = "旅程提前結束";
+                endDescription.textContent = message + " 大球決定去尋找其他可以善待她的人。";
+                endImage.src = './img/merak_board_false.png'; 
+                endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/aaaaaa/333333?text=...&font=noto-sans-tc'; };
+                endImage.className = "max-h-48 mx-auto object-contain";
+            } else if (state.affinityLevel >= 9 && state.actionLog['許願']) { // Perfect Ending
+                endTitle.textContent = "嶄新的早晨";
+                endDescription.textContent = "隔天醒來，你發現身旁的大球不見了，取而代之的是一位可愛的藍髮少女。她微笑著說：「謝謝你一直以來的照顧，從今以後，也請多指教囉！」從那天起，你們一起生活，偶爾她會變回大球的樣子撒嬌，你們一起看星星、一起吃飯、一起創造了無數閃閃發光的回憶。";
+                endImage.src = './img/merak_morning.png';
+                endImage.onerror = () => { endImage.src = 'https://placehold.co/480x270/a0e0ff/333333?text=完美結局&font=noto-sans-tc'; };
+                endImage.className = "w-full rounded-lg object-contain";
+            } else { // Normal Ending
+                endTitle.textContent = "旅程結束";
+                endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。你看著火箭緩緩升空，消失在回大熊星座的路上。";
+                endImage.src = './img/merak_rocket.png';
+                endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
+                endImage.className = "max-h-48 mx-auto object-contain";
+            }
+            
+            actionSummary.innerHTML = '';
+            if (Object.keys(state.actionLog).length === 0) {
+                actionSummary.innerHTML = '<p>這次沒有跟大球留下任何回憶...</p>';
+            } else {
+                 for (const [action, count] of Object.entries(state.actionLog)) {
+                    const p = document.createElement('p');
+                    p.textContent = `・${action}：${count} 次`;
+                    actionSummary.appendChild(p);
+                }
+            }
+            questSummary.textContent = `完成每日心願：${state.completedQuests} 次`;
+        }
+        
+        function updateUI(message = '') {
+            dayCounter.textContent = `第 ${state.currentDay} / ${state.totalDays} 天`;
+            actionPointsCounter.textContent = `行動力: ${state.actionPoints}`;
+            if(message) messageBox.innerHTML = message;
+
+            affinityLevelDisplay.textContent = `LV. ${state.affinityLevel}`;
+            const isMaxLevel = state.affinityLevel > affinityLevels.length;
+            if (isMaxLevel) {
+                updateBar(affinityBar, 1, 1, `MAX`);
+            } else {
+                const xpForNextLevel = affinityLevels[state.affinityLevel - 1];
+                updateBar(affinityBar, state.affinityXP, xpForNextLevel, `XP: ${state.affinityXP} / ${xpForNextLevel}`);
+            }
+            affinityBar.style.backgroundColor = '#f472b6';
+            
+            updateBar(hungerBar, state.stats.hunger, 100, `${state.stats.hunger}%`);
+            updateBar(happinessBar, state.stats.happiness, 100, `${state.stats.happiness}%`);
+            updateBar(cleanlinessBar, state.stats.cleanliness, 100, `${state.stats.cleanliness}%`);
+            
+            const canAct = state.actionPoints > 0 && !state.isActionInProgress;
+            feedBtn.disabled = !canAct;
+            interactBtn.disabled = !canAct;
+            cleanBtn.disabled = !canAct;
+            
+            if (state.actionPoints <= 0 && !state.isActionInProgress) {
+                nextDayBtn.classList.remove('hidden');
+                closeSubmenus();
+            } else {
+                nextDayBtn.classList.add('hidden');
+            }
+        }
+
+        function updateBar(barElement, value, maxValue = 100, text) {
+            const percentage = Math.min(100, Math.max(0, (value / maxValue) * 100));
+            barElement.style.width = `${percentage}%`;
+            barElement.textContent = text;
+
+            if (percentage < 45 && percentage > 0) {
+                barElement.style.color = '#374151'; // text-gray-700
+                barElement.style.textAlign = 'left';
+                barElement.style.paddingLeft = '10px';
+            } else {
+                barElement.style.color = 'white';
+                barElement.style.textAlign = 'center';
+                barElement.style.paddingLeft = '0';
+            }
+            
+            if (barElement.id.includes('affinity')) return;
+
+            if (percentage > 60) barElement.style.backgroundColor = '#4ade80';
+            else if (percentage > 30) barElement.style.backgroundColor = '#facc15';
+            else barElement.style.backgroundColor = '#f87171';
+        }
+
+        function setupSubmenus() {
+            feedSubmenu.innerHTML = '';
+            interactSubmenu.innerHTML = '';
+
+            for (const key in actions) {
+                const action = actions[key];
+                if (!action.label) continue;
+                
+                const isUnlocked = state.affinityLevel >= action.unlocksAt;
+                
+                const button = document.createElement('button');
+                button.textContent = isUnlocked ? action.label : `🔒 LV.${action.unlocksAt}`;
+                button.onclick = () => performAction(key);
+                button.disabled = !isUnlocked;
+
+                let colorClass = 'bg-gray-200 text-gray-400';
+                if (isUnlocked) {
+                    if (action.type === 'feed') colorClass = 'bg-green-200 text-green-800';
+                    if (action.type === 'interact') colorClass = 'bg-yellow-200 text-yellow-800';
+                }
+                
+                button.className = `action-button ${colorClass} p-2 rounded-md text-sm`;
+                if (action.type === 'feed') feedSubmenu.appendChild(button);
+                else if (action.type === 'interact') interactSubmenu.appendChild(button);
+            }
+        }
+        
+        function closeSubmenus() {
+            feedSubmenu.classList.remove('is-active');
+            interactSubmenu.classList.remove('is-active');
+        }
+
+        function initializeApp() {
+            gameScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        }
+
+        // --- Event Listeners ---
+        startGameBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const days = parseInt(btn.getAttribute('data-days'));
+                startGame(days);
+            });
+        });
+        restartGameBtn.addEventListener('click', initializeApp);
+        nextDayBtn.addEventListener('click', goToNextDay);
+        continueBtn.addEventListener('click', continueAfterAction);
+        document.addEventListener('keyup', (e) => {
+            if (e.key.toLowerCase() === 'z') {
+                if (!continueBtn.classList.contains('hidden')) {
+                    continueAfterAction();
+                } else if (!nextDayBtn.classList.contains('hidden')) {
+                    goToNextDay();
+                }
+            }
+        });
+        feedBtn.addEventListener('click', () => {
+            feedSubmenu.classList.toggle('is-active');
+            interactSubmenu.classList.remove('is-active');
+        });
+        interactBtn.addEventListener('click', () => {
+            interactSubmenu.classList.toggle('is-active');
+            feedSubmenu.classList.remove('is-active');
+        });
+        cleanBtn.addEventListener('click', () => performAction('brush'));
+
+        // --- Initial Load ---
+        initializeApp();
+    });
+    </script>
+</body>
+</html>
