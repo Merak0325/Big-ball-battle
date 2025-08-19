@@ -138,6 +138,10 @@
                 <p class="text-gray-800 text-2xl font-bold">最終好感度: <span id="final-affinity"></span></p>
             </div>
             <div class="text-left bg-gray-50 p-4 rounded-lg">
+                 <div id="achievement-unlocked" class="hidden text-center mb-4 p-3 bg-yellow-100 border-2 border-yellow-300 rounded-lg">
+                    <h3 class="text-2xl font-bold text-yellow-600">🏅 成就解鎖：回憶收藏家 🏅</h3>
+                    <p class="text-gray-700 mt-2">你與大球一起體驗了所有能做的事情，創造了獨一無二的完整回憶！謝謝你如此用心地陪伴她。</p>
+                </div>
                  <h2 class="font-bold text-lg mb-2">與大球的回憶：</h2>
                  <div id="action-summary" class="text-gray-600 space-y-1"></div>
                  <p id="quest-summary" class="text-gray-800 font-bold mt-2"></p>
@@ -158,7 +162,7 @@
             { name: '皇帶魚', type: 'rare', xp: 80, happiness: 50, message: '天啊！是傳說中的皇帶魚！大球看起來超級興奮！' }
         ];
         const DAILY_QUESTS = [
-            { hint: "今天大球看起來有點寂寞...", actionKey: "hug", condition: (stats) => stats.happiness < 70 },
+            { hint: "今天大球看起來有點寂寞...", actionKey: "hug", condition: (stats) => true },
             { hint: "大球的肚子好像在發出微弱的聲響...", actionKeys: ["almond", "chocolate", "onigiri", "pancake", "spring_roll", "zhongzi", "tangyuan"], condition: (stats) => stats.hunger < 70 },
             { hint: "大球今天看起來無精打采的...", actionKey: "sleep", condition: (stats) => true },
             { hint: "大球的身體似乎有點黯淡...", actionKey: "brush", condition: (stats) => stats.cleanliness < 70 },
@@ -213,6 +217,7 @@
         const endTitle = document.getElementById('end-title');
         const endDescription = document.getElementById('end-description');
         const memorableEventContainer = document.getElementById('memorable-event');
+        const achievementContainer = document.getElementById('achievement-unlocked');
 
         // --- Action Definitions ---
         const actions = {
@@ -220,7 +225,7 @@
             almond: { type: 'feed', img: 'merak_eat_nut.png', hunger: 10, happiness: 2, cleanliness: -2, xp: 5, message: '喀滋喀滋！', label: '杏仁', unlocksAt: 1 },
             chocolate: { type: 'feed', img: 'merak_chocolate.png', hunger: 15, happiness: 5, cleanliness: -5, xp: 8, message: '大球喜歡巧克力！', label: '巧克力', unlocksAt: 2 },
             onigiri: { type: 'feed', img: 'merak_onigiri.png', hunger: 22, happiness: 8, cleanliness: -8, xp: 15, message: '吃完飯糰後，大球變成了三角形！', label: '飯糰', unlocksAt: 3, memorableKey: 'onigiri' },
-            pancake: { type: 'feed', img: 'merak_eat_pancake.png', hunger: 20, happiness: 5, cleanliness: -5, xp: 12, message: '好好吃的鬆餅！', label: '鬆餅', unlocksAt: 4 },
+            pancake: { type: 'feed', img: 'merak_eat_pancake.png', hunger: 18, happiness: 10, cleanliness: -5, xp: 12, message: '好好吃的鬆餅！', label: '鬆餅', unlocksAt: 4 },
             spring_roll: { type: 'feed', img: 'merak_eat_spring_roll.png', hunger: 25, happiness: 10, cleanliness: -10, xp: 18, message: '來自家鄉的懷念好滋味！', label: '潤餅', unlocksAt: 5 },
             zhongzi: { type: 'feed', img: 'merak_eat_zhongzi.png', hunger: 30, happiness: 10, cleanliness: -10, xp: 25, message: '大球發出了滿足的核融合反應聲。', label: '粽子', unlocksAt: 6 },
             tangyuan: { type: 'feed', img: 'merak_tangyuan.png', hunger: 35, happiness: 20, cleanliness: -15, xp: 30, message: '泡在溫暖的甜湯裡，大球舒服地發出微光。', label: '泡湯圓', unlocksAt: 8 },
@@ -236,8 +241,8 @@
             sleep: { type: 'interact', img: 'merak_sleep.png', hunger: -5, happiness: 10, cleanliness: 5, xp: 8, message: '蓋上棉被，大球發出了安穩的鼾聲。', label: '睡覺', unlocksAt: 2 },
             fishing: { type: 'interact', img: 'merak_fishing.png', special: 'fishing', label: '釣魚', unlocksAt: 3 },
             fly: { type: 'interact', img: 'merak_fly.png', hunger: -10, happiness: 20, cleanliness: -5, xp: 22, message: '用呆毛在空中飛行，就像一顆悠哉的彗星。', label: '飛行', unlocksAt: 4, memorableKey: 'fly' },
-            banana: { type: 'interact', img: 'merak_banana.png', hunger: -5, happiness: 28, cleanliness: 0, xp: 35, message: '香蕉...？雖然有點奇怪，但大球看起來很開心！', label: '香蕉裝', unlocksAt: 4 },
-            cow: { type: 'interact', img: 'merak_cow.png', hunger: -5, happiness: 25, cleanliness: 0, xp: 30, message: '哞～ 穿上牛牛裝的大球真可愛！', label: '裝扮', unlocksAt: 5 },
+            banana: { type: 'interact', img: 'merak_banana.png', hunger: -5, happiness: 25, cleanliness: 0, xp: 35, message: '香蕉...？雖然有點奇怪，但大球看起來很開心！', label: '香蕉裝', unlocksAt: 4 },
+            cow: { type: 'interact', img: 'merak_cow.png', hunger: -5, happiness: 30, cleanliness: 0, xp: 30, message: '哞～ 穿上牛牛裝的大球真可愛！', label: '裝扮', unlocksAt: 5 },
             surfing: { type: 'interact', special: 'chance', success: { img: 'merak_surfing.png', hunger: -15, happiness: 40, cleanliness: -10, xp: 50, message: '成功駕馭了浪頭！太帥了！' }, failure: { img: 'merak_surfing2.png', hunger: -5, happiness: -10, cleanliness: -20, xp: 5, message: '噗通！掉進海裡了...'}, label: '衝浪', unlocksAt: 6 },
             excavator: { type: 'interact', img: 'merak_excavator.png', hunger: -15, happiness: 35, cleanliness: -20, xp: 40, message: '大球開著挖土機，將煩惱像太空垃圾一樣通通清除！', label: '開挖土機', unlocksAt: 7, memorableKey: 'excavator' },
             fire: { type: 'interact', img: 'merak_fire.png', hunger: -5, happiness: 45, cleanliness: -5, xp: 60, message: '在溫暖的爐火旁，大球的核心也變得暖洋洋的。', label: '烤火', unlocksAt: 8, memorableKey: 'fire' },
@@ -427,8 +432,9 @@
                 gameOver();
                 return;
             }
-
-            let dailyXPGain = Math.round((state.stats.happiness / 20) + (state.stats.hunger / 25) + (state.stats.cleanliness / 30) - 5);
+            
+            const dayWeight = Math.floor((state.currentDay - 1) / 4) + 1;
+            let dailyXPGain = Math.round(((state.stats.happiness / 20) + (state.stats.hunger / 25) + (state.stats.cleanliness / 30) - 5) * dayWeight);
             if (dailyXPGain > 0) {
                  addAffinityXP(dailyXPGain);
             }
@@ -454,7 +460,7 @@
             }
 
             // Sickness event
-            if (state.affinityLevel >= actions.medicine.unlocksAt && Math.random() < 0.1) { // 10% chance to get sick
+            if (state.affinityLevel >= actions.medicine.unlocksAt && Math.random() < 0.08) { // 8% chance to get sick
                 state.stats.happiness = Math.max(0, state.stats.happiness - 20);
                 state.stats.hunger = Math.max(0, state.stats.hunger - 20);
                 state.dailyQuest = { hint: "大球好像有點感冒了，打了個噴嚏...", actionKey: "medicine" };
@@ -495,15 +501,15 @@
         }
 
         function checkBadEnding() {
-            if (state.stats.hunger <= 0) {
+            if (state.stats.hunger <= 10) {
                 gameOver("bad", "因為太餓了，大球離家出走了...");
                 return true;
             }
-            if (state.stats.happiness <= 0) {
+            if (state.stats.happiness <= 10) {
                 gameOver("bad", "因為太難過了，大球離家出走了...");
                 return true;
             }
-            if (state.stats.cleanliness <= 0) {
+            if (state.stats.cleanliness <= 10) {
                 gameOver("bad", "因為太髒了，大球離家出走了...");
                 return true;
             }
@@ -524,30 +530,34 @@
                 endImage.src = './img/merak_board_false.png'; 
                 endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/aaaaaa/333333?text=...&font=noto-sans-tc'; };
                 endImage.className = "max-h-48 mx-auto object-contain";
-            } else if (state.affinityLevel >= 9 && state.actionLog['許願']) { // Perfect Ending
-                endTitle.textContent = "嶄新的早晨";
-                endDescription.textContent = "隔天醒來，你發現身旁的大球不見了，取而代之的是一位可愛的藍髮少女。她微笑著說：「謝謝你一直以來的照顧，從今以後，也請多指教囉！」從那天起，你們一起生活。她告訴你，她的名字叫天璇。你們一起逛街、一起釣魚、一起在溫暖的爐火旁入睡，偶爾她會變回大球的樣子向你撒嬌。在無數個寧靜的夜晚，你們會一起仰望星空，她會指著遙遠的大熊座，與你分享來自故鄉的故事，並期待未來能與你創造更多閃閃發光的回憶。";
-                endImage.src = './img/merak_morning.png';
-                endImage.onerror = () => { endImage.src = 'https://placehold.co/480x270/a0e0ff/333333?text=完美結局&font=noto-sans-tc'; };
-                endImage.className = "w-full rounded-lg object-contain";
-            } else if (state.affinityLevel >= 9 && state.completedQuests >= 10) { // Promise Ending
-                endTitle.textContent = "旅程結束";
-                endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。她看起來依依不捨，並用星光在空中組成了『還會再見面』的字樣。你看著火箭緩緩升空，期待著與她重逢的那天。";
-                endImage.src = './img/merak_rocket.png';
-                endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
-                endImage.className = "max-h-48 mx-auto object-contain";
-            } else if (state.affinityLevel >= 7 && state.completedQuests >= 5) { // Thankful Ending
-                endTitle.textContent = "旅程結束";
-                endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。在離開前，她用身体蹭了蹭你，彷彿在說著『謝謝你』。你看著火箭緩緩升空，消失在回大熊星座的路上。";
-                endImage.src = './img/merak_rocket.png';
-                endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
-                endImage.className = "max-h-48 mx-auto object-contain";
-            } else { // Normal Ending
-                endTitle.textContent = "旅程結束";
-                endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。你看著火箭緩緩升空，消失在回大熊星座的路上。";
-                endImage.src = './img/merak_rocket.png';
-                endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
-                endImage.className = "max-h-48 mx-auto object-contain";
+                memorableEventContainer.style.display = 'none';
+            } else {
+                memorableEventContainer.style.display = 'block';
+                if (state.affinityLevel >= 9 && state.actionLog['許願']) { // Perfect Ending
+                    endTitle.textContent = "嶄新的早晨";
+                    endDescription.textContent = "隔天醒來，你發現身旁的大球不見了，取而代之的是一位可愛的藍髮少女。她微笑著說：「謝謝你一直以來的照顧，從今以後，也請多指教囉！」從那天起，你們一起生活。她告訴你，她的名字叫天璇。你們一起逛街、一起釣魚、一起在溫暖的爐火旁入睡，偶爾她會變回大球的樣子向你撒嬌。在無數個寧靜的夜晚，你們會一起仰望星空，她會指著遙遠的大熊座，與你分享來自故鄉的故事，並期待未來能與你創造更多閃閃發光的回憶。";
+                    endImage.src = './img/merak_morning.png';
+                    endImage.onerror = () => { endImage.src = 'https://placehold.co/480x270/a0e0ff/333333?text=完美結局&font=noto-sans-tc'; };
+                    endImage.className = "w-full rounded-lg object-contain";
+                } else if (state.affinityLevel >= 9 && state.completedQuests >= 10) { // Promise Ending
+                    endTitle.textContent = "旅程結束";
+                    endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。她看起來依依不捨，並用星光在空中組成了『還會再見面』的字樣。你看著火箭緩緩升空，期待著與她重逢的那天。";
+                    endImage.src = './img/merak_rocket.png';
+                    endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
+                    endImage.className = "max-h-48 mx-auto object-contain";
+                } else if (state.affinityLevel >= 7 && state.completedQuests >= 5) { // Thankful Ending
+                    endTitle.textContent = "旅程結束";
+                    endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。在離開前，她用身体蹭了蹭你，彷彿在說著『謝謝你』。你看著火箭緩緩升空，消失在回大熊星座的路上。";
+                    endImage.src = './img/merak_rocket.png';
+                    endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
+                    endImage.className = "max-h-48 mx-auto object-contain";
+                } else { // Normal Ending
+                    endTitle.textContent = "旅程結束";
+                    endDescription.textContent = "在約定的最後一天，大球向你道別，並搭上了一艘小小的火箭。你看著火箭緩緩升空，消失在回大熊星座的路上。";
+                    endImage.src = './img/merak_rocket.png';
+                    endImage.onerror = () => { endImage.src = 'https://placehold.co/200x200/a0e0ff/333333?text=普通結局&font=noto-sans-tc'; };
+                    endImage.className = "max-h-48 mx-auto object-contain";
+                }
             }
             
             actionSummary.innerHTML = '';
@@ -563,7 +573,7 @@
             questSummary.textContent = `完成每日心願：${state.completedQuests} 次`;
 
             memorableEventContainer.innerHTML = ''; // Clear previous
-            if (state.memorableEvents.length > 0) {
+            if (state.memorableEvents.length > 0 && endingType !== 'bad') {
                 const weightedEvents = [];
                 const uniqueEvents = [...new Set(state.memorableEvents)];
                 uniqueEvents.forEach(eventKey => {
@@ -581,6 +591,14 @@
                         <p class="text-gray-600 italic">「${memoryText}」</p>
                     `;
                 }
+            }
+            
+            const totalActions = Object.values(actions).filter(a => a.label).length;
+            const performedActions = Object.keys(state.actionLog).length;
+            if (performedActions >= totalActions && endingType !== 'bad') {
+                achievementContainer.classList.remove('hidden');
+            } else {
+                achievementContainer.classList.add('hidden');
             }
         }
         
