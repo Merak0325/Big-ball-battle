@@ -93,7 +93,7 @@
 
         .selected { transform: scale(1.1); border-color: #ffeb3b; box-shadow: 0 0 25px #ffeb3b; }
         
-        /* 新增：底部提示文字樣式 */
+        /* 底部提示文字樣式 */
         .footer-hint {
             position: absolute;
             bottom: 30px;
@@ -206,7 +206,6 @@
         const pauseRestartButton = document.getElementById('pauseRestartButton');
         const pauseBackToMenuButton = document.getElementById('pauseBackToMenuButton');
 
-
         // --- 遊戲狀態 ---
         let gameRunning = false;
         let isPaused = false;
@@ -230,9 +229,9 @@
 
         // --- 玩家設定 ---
         const initialPlayerSpeed = 3;
-        const player = { x: 0, y: 0, radius: 10, speed: initialPlayerSpeed, color: '#00aaff', activeEffects: {}, skills: { clone: { cooldown: 20000, timer: 0, key: 'a' }, shield: { cooldown: 15000, timer: 0, key: 's' } }, hasGateKey: false, wasOnGateTile: null };
+        const player = { x: 0, y: 0, radius: 10, speed: initialPlayerSpeed, color: '#00aaff', activeEffects: {}, skills: { clone: { cooldown: 20000, timer: 0, key: 'a' }, shield: { cooldown: 15000, timer: 0, key: 's' } }, hasGateKey: false, wasOnGateTile: null, debuffs: {} };
 
-        // --- 追逐者設定 ---
+        // --- 追逐者設定 (新增魔力系統) ---
         const initialChaserSpeed = 0.6;
         const initialChaserRotationSpeed = 0.05;
         const chaser = { 
@@ -240,8 +239,10 @@
             speed: initialChaserSpeed, speedBoost: 1, angle: 0, 
             rotationSpeed: initialChaserRotationSpeed, path: [], pathUpdateCounter: 0, 
             isFrozen: false, enrageTimeout: null, attackCooldown: 18, attackTimer: 0,
+            mana: 0,
+            maxMana: 100,
             voidWalk: {
-                cooldown: 30000,
+                manaCost: 60, // [修改] 耗魔
                 timer: 0,
                 isAvailable: false,
                 isActive: false,
@@ -251,6 +252,45 @@
                 prepareTimer: 0,
                 invisibleDuration: 5000,
                 invisibleTimer: 0,
+            },
+            starquake: {
+                manaCost: 50, // [修改] 耗魔
+                timer: 0,
+                isAvailable: false,
+                isActive: false,
+                isPreparing: false,
+                prepareDuration: 1000,
+                prepareTimer: 0,
+                shockwaves: []
+            },
+            particleCannon: {
+                manaCost: 10,
+                timer: 0,
+                isAvailable: false,
+                isActive: false,
+                isPreparing: false,
+                prepareDuration: 1000,
+                prepareTimer: 0,
+                beamCount: 0,
+                beamsFired: 0,
+                beamTimer: 0,
+                isFiringVolley: false,
+                volleyBulletCount: 0,
+                volleyInterval: 3, 
+                volleyTimer: 0,
+                target: null 
+            },
+            gravityWell: {
+                manaCost: 70,
+                timer: 0,
+                isAvailable: false,
+                isActive: false,
+                isPreparing: false,
+                prepareDuration: 1000,
+                prepareTimer: 0,
+                activeDuration: 8000,
+                activeTimer: 0,
+                expansionProgress: 0, 
             }
         };
 
@@ -435,21 +475,19 @@
             chaser.visualRadius = chaser.radius * 2;
         }
 
-        // --- 事件監聽 (已重構) ---
+        // --- 事件監聽 ---
         document.addEventListener('visibilitychange', () => { if (document.hidden && gameRunning && !isPaused) { timeWhenPaused = Date.now(); } else if (!document.hidden && gameRunning && !isPaused && timeWhenPaused > 0) { pausedTime += Date.now() - timeWhenPaused; timeWhenPaused = 0; } });
         
         window.addEventListener('keydown', (e) => {
             const key = e.key;
             const lowerKey = key.toLowerCase();
 
-            // --- 遊戲執行中 (遊玩或暫停狀態) ---
             if (gameRunning) {
                 if (key === 'Escape') {
                     e.preventDefault();
                     togglePause();
                     return;
                 }
-
                 if (isPaused) {
                     e.preventDefault();
                     if (key === 'ArrowUp' || key === 'ArrowDown') {
@@ -458,7 +496,7 @@
                         const selectedButton = pauseScreen.querySelector('.selected');
                         if (selectedButton) selectedButton.click();
                     }
-                } else { // 遊戲正在遊玩，非暫停
+                } else {
                     if (key in keys || lowerKey in keys) {
                         e.preventDefault();
                         if (key in keys) keys[key] = true;
@@ -468,7 +506,6 @@
                 return;
             }
 
-            // --- 遊戲未執行 (主選單等畫面) ---
             let activeScreen = null;
             if (mainMenu.style.display === 'flex') activeScreen = mainMenu;
             else if (levelSelectScreen.style.display === 'flex') activeScreen = levelSelectScreen;
@@ -490,7 +527,6 @@
                         if (selectedButton) selectedButton.click();
                     }
                     break;
-
                 case 'gameOverScreen':
                     if (key === 'ArrowLeft' || key === 'ArrowRight') {
                         updateButtonSelection(key === 'ArrowRight' ? 1 : -1);
@@ -499,7 +535,6 @@
                         if (selectedButton) selectedButton.click();
                     }
                     break;
-
                 case 'instructionsScreen':
                     if (lowerKey === 'z') {
                         instructionsBack.click();
@@ -546,7 +581,6 @@
         resumeButton.addEventListener('click', togglePause);
         pauseRestartButton.addEventListener('click', () => { pauseScreen.style.display = 'none'; isPaused = false; initializeGame(); });
         pauseBackToMenuButton.addEventListener('click', exitToMenu);
-
 
         // --- 遊戲核心邏輯 ---
         function isWallCollision(x, y, radius) {
@@ -608,20 +642,31 @@
             player.x = tileSize * 1.5; player.y = tileSize * 1.5;
             player.hasGateKey = false;
             player.wasOnGateTile = null;
+            player.debuffs = {};
             chaser.x = canvas.width - tileSize * 1.5; chaser.y = canvas.height - tileSize * 1.5;
             chaser.speed = initialChaserSpeed; chaser.speedBoost = 1;
             if(chaser.enrageTimeout) clearTimeout(chaser.enrageTimeout);
             chaser.angle = 0; chaser.path = []; chaser.pathUpdateCounter = 31; chaser.isFrozen = false;
+            chaser.mana = 0;
 
-            // 重設虛空潛行技能狀態
             const vw = chaser.voidWalk;
-            vw.timer = 0;
-            vw.isAvailable = false;
-            vw.isActive = false;
-            vw.isInvisible = false;
-            vw.isPreparing = false;
-            vw.prepareTimer = 0;
-            vw.invisibleTimer = 0;
+            vw.timer = 0; vw.isAvailable = false; vw.isActive = false; vw.isInvisible = false;
+            vw.isPreparing = false; vw.prepareTimer = 0; vw.invisibleTimer = 0;
+
+            const sq = chaser.starquake;
+            sq.timer = 0; sq.isAvailable = false; sq.isActive = false; sq.isPreparing = false;
+            sq.prepareTimer = 0; sq.shockwaves = [];
+
+            const pc = chaser.particleCannon;
+            pc.timer = 0; 
+            pc.isAvailable = false; // [修改] 恢復時間鎖定
+            pc.isActive = false; pc.isPreparing = false;
+            pc.prepareTimer = 0; pc.beamCount = 0; pc.beamsFired = 0; pc.beamTimer = 0;
+            pc.isFiringVolley = false; pc.volleyBulletCount = 0; pc.volleyTimer = 0; pc.target = null;
+            
+            const gw = chaser.gravityWell;
+            gw.timer = 0; gw.isAvailable = false; gw.isActive = false; gw.isPreparing = false;
+            gw.prepareTimer = 0; gw.activeTimer = 0; gw.expansionProgress = 0;
 
             for (let key in keys) { keys[key] = false; }
             startTime = Date.now(); elapsedTime = 0;
@@ -644,13 +689,15 @@
         function update() {
             if (!gameRunning || isPaused) return;
             elapsedTime = Date.now() - startTime - pausedTime;
-            for (const skill of Object.values(player.skills)) { if (skill.timer > 0) skill.timer -= 1000 / 60; }
-            if (keys.a && player.skills.clone.timer <= 0) { player.skills.clone.timer = player.skills.clone.cooldown; clone = { x: player.x, y: player.y, lifetime: 300 }; }
-            if (keys.s && player.skills.shield.timer <= 0) { player.skills.shield.timer = player.skills.shield.cooldown; player.activeEffects.shield = setTimeout(() => { delete player.activeEffects.shield; }, 4000); }
             
+            // 玩家技能
+            for (const skill of Object.values(player.skills)) { if (skill.timer > 0) skill.timer -= 1000 / 60; }
+            if (keys.a && player.skills.clone.timer <= 0 && !player.debuffs.skillSilence) { player.skills.clone.timer = player.skills.clone.cooldown; clone = { x: player.x, y: player.y, lifetime: 300 }; }
+            if (keys.s && player.skills.shield.timer <= 0 && !player.debuffs.skillSilence) { player.skills.shield.timer = player.skills.shield.cooldown; player.activeEffects.shield = setTimeout(() => { delete player.activeEffects.shield; }, 4000); }
+            
+            // 物品生成
             const spawnIntervalSeconds = Math.max(1, 4.5 - Math.floor(elapsedTime / 30000) * 0.5);
             const spawnIntervalFrames = spawnIntervalSeconds * 60;
-
             collectibleSpawnCounter++;
             if (collectibleSpawnCounter > spawnIntervalFrames) { spawnItem(collectibles, { radius: tileSize / 6, color: levelData[currentLevelId].colors.collectible }); collectibleSpawnCounter = 0; }
             powerUpSpawnCounter++;
@@ -666,32 +713,24 @@
                 powerUpSpawnCounter = 0; 
             }
             
+            // 玩家移動
             let moveX = 0, moveY = 0;
-            if (keys.ArrowUp) moveY -= player.speed; if (keys.ArrowDown) moveY += player.speed;
-            if (keys.ArrowLeft) moveX -= player.speed; if (keys.ArrowRight) moveX += player.speed;
+            if (!player.debuffs.immobilized) {
+                if (keys.ArrowUp) moveY -= player.speed; if (keys.ArrowDown) moveY += player.speed;
+                if (keys.ArrowLeft) moveX -= player.speed; if (keys.ArrowRight) moveX += player.speed;
+            }
             if (moveX !== 0 && !isWallCollision(player.x + moveX, player.y, player.radius)) { player.x += moveX; }
             if (moveY !== 0 && !isWallCollision(player.x, player.y + moveY, player.radius)) { player.y += moveY; }
             
+            // 閘門邏輯
             if (player.wasOnGateTile) {
-                const gateTileBounds = {
-                    left: player.wasOnGateTile.x * tileSize,
-                    right: (player.wasOnGateTile.x + 1) * tileSize,
-                    top: player.wasOnGateTile.y * tileSize,
-                    bottom: (player.wasOnGateTile.y + 1) * tileSize
-                };
-                if ( (player.x + player.radius < gateTileBounds.left) ||
-                     (player.x - player.radius > gateTileBounds.right) ||
-                     (player.y + player.radius < gateTileBounds.top) ||
-                     (player.y - player.radius > gateTileBounds.bottom) )
-                {
+                const gateTileBounds = { left: player.wasOnGateTile.x * tileSize, right: (player.wasOnGateTile.x + 1) * tileSize, top: player.wasOnGateTile.y * tileSize, bottom: (player.wasOnGateTile.y + 1) * tileSize };
+                if ( (player.x + player.radius < gateTileBounds.left) || (player.x - player.radius > gateTileBounds.right) || (player.y + player.radius < gateTileBounds.top) || (player.y - player.radius > gateTileBounds.bottom) ) {
                     player.hasGateKey = false;
                     player.wasOnGateTile = null;
-
-                    // --- BUG FIX: Unstuck chaser from reappearing gate wall ---
                     const maze = levelData[currentLevelId].maze;
                     const chaserGridX = Math.floor(chaser.x / tileSize);
                     const chaserGridY = Math.floor(chaser.y / tileSize);
-
                     if (maze[chaserGridY] && maze[chaserGridY][chaserGridX] === 2) {
                         const neighbors = [[0, -1], [0, 1], [-1, 0], [1, 0]];
                         for (const [dx, dy] of neighbors) {
@@ -713,47 +752,224 @@
                 player.wasOnGateTile = { x: currentPlayerGridX, y: currentPlayerGridY };
             }
             
+            // 碰撞檢測
             [collectibles, powerUps, projectiles].forEach((itemArray, arrIndex) => {
                 for (let i = itemArray.length - 1; i >= 0; i--) {
                     const item = itemArray[i];
-                    if (arrIndex === 2) { item.x += item.dx * item.speed; item.y += item.dy * item.speed; if(isWallCollision(item.x, item.y, item.radius)) { itemArray.splice(i, 1); continue; } }
+                    if (arrIndex === 2) { 
+                        if (item.type !== 'particle') {
+                            item.x += item.dx * item.speed; 
+                            item.y += item.dy * item.speed; 
+                            if(isWallCollision(item.x, item.y, item.radius)) { 
+                                itemArray.splice(i, 1); continue; 
+                            }
+                        } else {
+                            item.x += item.dx * item.speed; 
+                            item.y += item.dy * item.speed; 
+                            if (item.x < 0 || item.x > canvas.width || item.y < 0 || item.y > canvas.height) {
+                                itemArray.splice(i, 1); continue;
+                            }
+                        }
+                    }
                     const dx = player.x - item.x; const dy = player.y - item.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance < player.radius + item.radius) {
                         if (arrIndex === 0) { score += 10; itemArray.splice(i, 1); }
                         else if (arrIndex === 1) { activatePowerUp(item.type); itemArray.splice(i, 1); }
-                        else { if (player.activeEffects.shield) { itemArray.splice(i, 1); } else { endGame(); } }
+                        else { 
+                            if (player.activeEffects.shield) {
+                                itemArray.splice(i, 1);
+                            } else {
+                                if (item.type === 'particle') {
+                                    if (!player.debuffs.immobilized) {
+                                        player.debuffs.immobilized = true;
+                                        setTimeout(() => { delete player.debuffs.immobilized; }, 2000);
+                                    }
+                                    itemArray.splice(i, 1);
+                                } else {
+                                    endGame();
+                                }
+                            }
+                        }
                     }
                 }
             });
             if (clone) { clone.lifetime--; const chaserDistToClone = Math.sqrt(Math.pow(chaser.x - clone.x, 2) + Math.pow(chaser.y - clone.y, 2)); if (clone.lifetime <= 0 || chaserDistToClone < chaser.radius) { clone = null; } }
             
+            // --- 大球魔力與技能邏輯 ---
+            if (chaser.mana < chaser.maxMana) { chaser.mana = Math.min(chaser.maxMana, chaser.mana + 3 / 60); }
+
             const vw = chaser.voidWalk;
-            if (!vw.isAvailable && elapsedTime >= 90000) { vw.isAvailable = true; }
-            if (vw.timer > 0) vw.timer -= 1000 / 60;
+            const sq = chaser.starquake;
+            const pc = chaser.particleCannon;
+            const gw = chaser.gravityWell;
+
+            // 技能解鎖時間
+            if (!vw.isAvailable && elapsedTime >= 60000) { vw.isAvailable = true; }
+            if (!sq.isAvailable && elapsedTime >= 120000) { sq.isAvailable = true; }
+            if (!pc.isAvailable && elapsedTime >= 180000) { pc.isAvailable = true; }
+            if (!gw.isAvailable && elapsedTime >= 240000) { gw.isAvailable = true; }
+
+            // 技能計時器
             if (vw.prepareTimer > 0) vw.prepareTimer -= 1000 / 60;
             if (vw.invisibleTimer > 0) vw.invisibleTimer -= 1000 / 60;
+            if (sq.prepareTimer > 0) sq.prepareTimer -= 1000 / 60;
+            if (pc.prepareTimer > 0) pc.prepareTimer -= 1000 / 60;
+            if (pc.beamTimer > 0) pc.beamTimer -= 1000 / 60;
+            if (pc.volleyTimer > 0) pc.volleyTimer--; 
+            if (gw.prepareTimer > 0) gw.prepareTimer -= 1000 / 60;
+            if (gw.activeTimer > 0) gw.activeTimer -= 1000 / 60;
 
-            if (vw.isAvailable && !vw.isActive && vw.timer <= 0) {
-                if (Math.random() < (0.1 / 60)) {
-                    vw.isActive = true;
-                    vw.isPreparing = true;
-                    vw.prepareTimer = vw.prepareDuration;
-                    vw.timer = vw.cooldown;
+            // [修改] 技能施放機率與條件
+            let skillChance = 0;
+            if (elapsedTime >= 60000) {
+                const secondsPastMinuteOne = Math.floor((elapsedTime - 60000) / 1000);
+                const increments = Math.floor(secondsPastMinuteOne / 30);
+                skillChance = Math.min(0.40, 0.05 + increments * 0.05);
+            }
+            
+            if (!vw.isActive && !sq.isActive && !pc.isActive && !gw.isActive && !chaser.isFrozen && chaser.mana >= 70 && Math.random() < (skillChance / 60)) {
+                const castableSkills = [];
+                if (gw.isAvailable && chaser.mana >= gw.manaCost) castableSkills.push('gravityWell');
+                if (pc.isAvailable && chaser.mana >= pc.manaCost * 3) castableSkills.push('particleCannon');
+                if (vw.isAvailable && chaser.mana >= vw.manaCost) castableSkills.push('voidWalk');
+                if (sq.isAvailable && chaser.mana >= sq.manaCost) castableSkills.push('starquake');
+
+                if (castableSkills.length > 0) {
+                    const chosenSkill = castableSkills[Math.floor(Math.random() * castableSkills.length)];
+                    if (chosenSkill === 'gravityWell') {
+                        gw.isActive = true; gw.isPreparing = true; gw.prepareTimer = gw.prepareDuration;
+                    } else if (chosenSkill === 'voidWalk') {
+                        vw.isActive = true; vw.isPreparing = true; vw.prepareTimer = vw.prepareDuration;
+                    } else if (chosenSkill === 'starquake') {
+                        sq.isActive = true; sq.isPreparing = true; sq.prepareTimer = sq.prepareDuration;
+                    } else if (chosenSkill === 'particleCannon') {
+                        pc.isActive = true; pc.isPreparing = true; pc.prepareTimer = pc.prepareDuration;
+                        pc.beamCount = 3 + Math.floor(Math.random() * 4);
+                        pc.beamsFired = 0;
+                    }
                 }
             }
 
-            if (vw.isPreparing && vw.prepareTimer <= 0) {
-                vw.isPreparing = false;
-                vw.isInvisible = true;
-                vw.invisibleTimer = vw.invisibleDuration;
+            // 技能狀態轉換 (加入 isFrozen 判斷)
+            if (!chaser.isFrozen) {
+                if (gw.isPreparing && gw.prepareTimer <= 0) {
+                    gw.isPreparing = false;
+                    gw.activeTimer = gw.activeDuration;
+                    gw.expansionProgress = 0; 
+                    chaser.mana -= gw.manaCost;
+                }
+                if (gw.isActive && !gw.isPreparing && gw.activeTimer <= 0) {
+                    gw.isActive = false;
+                }
+
+                if (vw.isPreparing && vw.prepareTimer <= 0) { vw.isPreparing = false; vw.isInvisible = true; vw.invisibleTimer = vw.invisibleDuration; chaser.mana -= vw.manaCost; }
+                if (vw.isInvisible && vw.invisibleTimer <= 0) { vw.isInvisible = false; vw.isActive = false; }
+                
+                if (sq.isPreparing && sq.prepareTimer <= 0) {
+                    sq.isPreparing = false;
+                    chaser.mana -= sq.manaCost;
+                    for(let i=0; i<3; i++) {
+                        sq.shockwaves.push({ x: chaser.x, y: chaser.y, radius: 0, speed: 2 + i*0.5, maxRadius: tileSize * 7 });
+                    }
+                }
+                if (pc.isPreparing && pc.prepareTimer <= 0) { pc.isPreparing = false; pc.beamTimer = 0; }
             }
-            if (vw.isInvisible && vw.invisibleTimer <= 0) {
-                vw.isInvisible = false;
-                vw.isActive = false;
+            
+            // 技能效果更新 (加入 isFrozen 判斷)
+            if (gw.isActive && !gw.isPreparing && !chaser.isFrozen) {
+                if (gw.expansionProgress < 1) {
+                    gw.expansionProgress += 0.05; 
+                }
+                gw.expansionProgress = Math.min(1, gw.expansionProgress);
+
+                const pullStrength = 3.3; 
+                const dx = chaser.x - player.x;
+                const dy = chaser.y - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > 1) {
+                    const pullX = (dx / distance) * pullStrength;
+                    const pullY = (dy / distance) * pullStrength;
+                    if (!isWallCollision(player.x + pullX, player.y, player.radius)) {
+                        player.x += pullX;
+                    }
+                    if (!isWallCollision(player.x, player.y + pullY, player.radius)) {
+                        player.y += pullY;
+                    }
+                }
+                
+                let shrinkProgress = 1;
+                if (gw.activeTimer < 1000) { 
+                    shrinkProgress = gw.activeTimer / 1000;
+                }
+                const blackHoleRadius = tileSize * 5;
+                const currentBlackHoleRadius = blackHoleRadius * gw.expansionProgress * shrinkProgress;
+                
+                if (distance < currentBlackHoleRadius) {
+                    endGame();
+                    return; 
+                }
             }
 
-            if (!chaser.isFrozen && !chaser.voidWalk.isPreparing) {
+            if (sq.shockwaves.length > 0 && !chaser.isFrozen) {
+                for (let i = sq.shockwaves.length - 1; i >= 0; i--) {
+                    let wave = sq.shockwaves[i];
+                    wave.radius += wave.speed;
+                    const distToPlayer = Math.sqrt(Math.pow(player.x - wave.x, 2) + Math.pow(player.y - wave.y, 2));
+                    if (Math.abs(distToPlayer - wave.radius) < player.radius && !player.debuffs.slow) {
+                        player.debuffs.slow = true; player.debuffs.skillSilence = true; player.speed /= 2;
+                        setTimeout(() => { player.speed = initialPlayerSpeed; delete player.debuffs.slow; delete player.debuffs.skillSilence; }, 4000);
+                    }
+                    if (wave.radius > wave.maxRadius) {
+                        sq.shockwaves.splice(i, 1);
+                        if(sq.shockwaves.length === 0) sq.isActive = false;
+                    }
+                }
+            }
+            
+            if (pc.isActive && !pc.isPreparing && !chaser.isFrozen) {
+                if (!pc.isFiringVolley && pc.beamTimer <= 0 && pc.beamsFired < pc.beamCount) {
+                    if (chaser.mana >= pc.manaCost) {
+                        chaser.mana -= pc.manaCost;
+                        pc.isFiringVolley = true;
+                        pc.volleyBulletCount = 0;
+                        pc.volleyTimer = 0;
+                        pc.target = clone ? clone : player;
+                        pc.beamsFired++;
+                        pc.beamTimer = 500;
+                    } else {
+                        pc.isActive = false;
+                    }
+                }
+                if (pc.beamsFired >= pc.beamCount && !pc.isFiringVolley) {
+                    pc.isActive = false;
+                }
+            }
+
+            if (pc.isFiringVolley && !chaser.isFrozen) {
+                if (pc.volleyTimer <= 0 && pc.volleyBulletCount < 7) {
+                    const target = pc.target;
+                    const dx = target.x - chaser.x;
+                    const dy = target.y - chaser.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    projectiles.push({
+                        x: chaser.x, y: chaser.y,
+                        dx: dx / dist, dy: dy / dist,
+                        speed: 15, radius: 6,
+                        color: '#f1c40f', type: 'particle'
+                    });
+                    pc.volleyBulletCount++;
+                    pc.volleyTimer = pc.volleyInterval;
+                }
+                if (pc.volleyBulletCount >= 7) {
+                    pc.isFiringVolley = false;
+                    pc.target = null;
+                }
+            }
+
+
+            // 大球移動
+            if (!chaser.isFrozen && !vw.isPreparing && !sq.isPreparing && !pc.isPreparing && !gw.isActive) {
                 const target = clone ? clone : player;
                 const canSeeTarget = !player.activeEffects.smoked && hasLineOfSight(chaser, target);
                 if (canSeeTarget) {
@@ -793,7 +1009,17 @@
 
         function draw() {
             const colors = levelData[currentLevelId].colors;
+            
+            ctx.save(); 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (chaser.gravityWell.isActive && !chaser.gravityWell.isPreparing) {
+                const shakeIntensity = 5;
+                const shakeX = (Math.random() - 0.5) * shakeIntensity;
+                const shakeY = (Math.random() - 0.5) * shakeIntensity;
+                ctx.translate(shakeX, shakeY);
+            }
+
             const maze = levelData[currentLevelId].maze;
             for (let row = 0; row < maze.length; row++) { for (let col = 0; col < maze[row].length; col++) { 
                 const tile = maze[row][col];
@@ -812,24 +1038,60 @@
                     }
                 }
             } }
-            [collectibles, powerUps, projectiles].forEach((itemArray, arrIndex) => { for (const item of itemArray) { ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); ctx.fillStyle = item.color; ctx.shadowColor = item.color; ctx.shadowBlur = 15; ctx.fill(); ctx.closePath(); if(arrIndex === 1) { ctx.font = `${item.radius * 1.5}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'black'; ctx.fillText(item.emoji, item.x, item.y); } } });
+            [collectibles, powerUps, projectiles].forEach((itemArray, arrIndex) => { for (const item of itemArray) { ctx.beginPath(); ctx.fillStyle = item.color; ctx.shadowColor = item.color; if (item.type === 'particle') { ctx.shadowBlur = 20; ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); } else { ctx.shadowBlur = 15; ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); } ctx.fill(); ctx.closePath(); if(arrIndex === 1) { ctx.font = `${item.radius * 1.5}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'black'; ctx.fillText(item.emoji, item.x, item.y); } } });
             ctx.shadowBlur = 0;
             if (clone) { ctx.save(); ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(clone.x, clone.y, player.radius, 0, Math.PI * 2); ctx.fillStyle = player.color; ctx.fill(); ctx.closePath(); ctx.restore(); }
-            ctx.save(); if (clone) ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2); ctx.fillStyle = player.color; ctx.shadowColor = player.activeEffects.speed ? '#7edc7e' : '#00aaff'; ctx.shadowBlur = 20; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 0; ctx.restore();
+            ctx.save(); if (clone) ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2); ctx.fillStyle = player.debuffs.slow ? '#7f8c8d' : player.color; ctx.shadowColor = player.activeEffects.speed ? '#7edc7e' : '#00aaff'; ctx.shadowBlur = 20; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 0; ctx.restore();
             if (player.activeEffects.shield) { ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 5, 0, Math.PI * 2); ctx.strokeStyle = '#3498db'; ctx.lineWidth = 3; ctx.stroke(); ctx.closePath(); }
+            if (player.debuffs.immobilized) { ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 5, 0, Math.PI * 2); ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.closePath(); ctx.setLineDash([]); }
+
+            chaser.starquake.shockwaves.forEach(wave => {
+                ctx.beginPath(); ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2); ctx.strokeStyle = `rgba(231, 76, 60, ${1 - wave.radius / wave.maxRadius})`; ctx.lineWidth = 4; ctx.stroke(); ctx.closePath();
+            });
             
+            if (chaser.gravityWell.isActive && !chaser.gravityWell.isPreparing) {
+                const gw = chaser.gravityWell;
+                let shrinkProgress = 1;
+                if (gw.activeTimer < 1000) { 
+                    shrinkProgress = gw.activeTimer / 1000;
+                }
+
+                const maxBlackHoleRadius = tileSize * 5;
+                const currentBlackHoleRadius = maxBlackHoleRadius * gw.expansionProgress * shrinkProgress;
+                
+                if (currentBlackHoleRadius > 0) {
+                    const gradient = ctx.createRadialGradient(chaser.x, chaser.y, chaser.radius, chaser.x, chaser.y, currentBlackHoleRadius);
+                    gradient.addColorStop(0, 'rgba(20, 0, 30, 0.9)');
+                    gradient.addColorStop(0.8, 'rgba(50, 0, 80, 0.5)');
+                    gradient.addColorStop(1, 'rgba(80, 20, 120, 0)');
+
+                    ctx.beginPath();
+                    ctx.arc(chaser.x, chaser.y, currentBlackHoleRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+
+            let drawX = chaser.x; let drawY = chaser.y;
+            if (chaser.starquake.isPreparing) { drawX += (Math.random() - 0.5) * 4; drawY += (Math.random() - 0.5) * 4; }
+
             ctx.save();
-            ctx.translate(chaser.x, chaser.y);
+            ctx.translate(drawX, drawY);
             
-            if (chaser.voidWalk.isPreparing) {
-                const vw = chaser.voidWalk;
-                const progress = 1 - (vw.prepareTimer / vw.prepareDuration);
+            if (chaser.voidWalk.isPreparing || chaser.starquake.isPreparing || chaser.particleCannon.isPreparing || chaser.gravityWell.isPreparing) {
+                const skill = chaser.voidWalk.isPreparing ? chaser.voidWalk :
+                              chaser.starquake.isPreparing ? chaser.starquake :
+                              chaser.gravityWell.isPreparing ? chaser.gravityWell :
+                              chaser.particleCannon;
+                const progress = 1 - (skill.prepareTimer / skill.prepareDuration);
                 const radius = chaser.visualRadius * 2 * progress;
                 const alpha = 1 - progress;
-                ctx.beginPath();
-                ctx.arc(0, 0, radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(148, 0, 211, ${alpha})`;
-                ctx.fill();
+                let color;
+                if (chaser.voidWalk.isPreparing) color = `rgba(148, 0, 211, ${alpha})`;
+                else if (chaser.starquake.isPreparing) color = `rgba(255, 100, 0, ${alpha})`;
+                else if (chaser.gravityWell.isPreparing) color = `rgba(50, 0, 80, ${alpha})`;
+                else if (chaser.particleCannon.isPreparing) color = `rgba(241, 196, 15, ${alpha})`;
+                ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
             }
 
             ctx.rotate(chaser.angle);
@@ -838,16 +1100,26 @@
                 let chaserAlpha = 1.0;
                 if (chaser.isFrozen) chaserAlpha = 0.5;
                 if (chaser.voidWalk.isInvisible) chaserAlpha = 0.0;
-
-                if (chaserAlpha > 0) {
-                    ctx.globalAlpha = chaserAlpha;
-                    ctx.drawImage(chaserImage, -chaser.visualRadius, -chaser.visualRadius, chaser.visualRadius * 2, chaser.visualRadius * 2);
-                }
+                if (chaserAlpha > 0) { ctx.globalAlpha = chaserAlpha; ctx.drawImage(chaserImage, -chaser.visualRadius, -chaser.visualRadius, chaser.visualRadius * 2, chaser.visualRadius * 2); }
             }
             ctx.restore();
+            
+            drawChaserUI(drawX, drawY);
 
             ctx.fillStyle = 'white'; ctx.font = '24px Arial'; ctx.textAlign = 'left'; ctx.fillText(formatTime(elapsedTime), 10, 30); ctx.textAlign = 'right'; ctx.fillText(`分數: ${score}`, canvas.width - 10, 30);
             drawSkillUI();
+            
+            ctx.restore(); 
+        }
+
+        function drawChaserUI(x, y) {
+            if (chaser.voidWalk.isInvisible) return;
+            const barWidth = chaser.visualRadius * 2; const barHeight = 8; const barX = x - chaser.visualRadius; const barY = y + chaser.visualRadius + 5;
+            ctx.fillStyle = 'rgba(50, 50, 50, 0.8)'; ctx.fillRect(barX, barY, barWidth, barHeight);
+            const manaRatio = chaser.mana / chaser.maxMana; 
+            ctx.fillStyle = '#be29ec'; 
+            ctx.fillRect(barX, barY, barWidth * manaRatio, barHeight);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.strokeRect(barX, barY, barWidth, barHeight);
         }
 
         function drawSkillUI() {
@@ -859,6 +1131,7 @@
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; ctx.fillRect(uiX, uiY, skillSize, skillSize);
                 const cooldownRatio = s.skill.timer / s.skill.cooldown;
                 if (cooldownRatio > 0) { ctx.fillStyle = 'rgba(200, 0, 0, 0.7)'; ctx.fillRect(uiX, uiY + skillSize * (1 - cooldownRatio), skillSize, skillSize * cooldownRatio); }
+                if (player.debuffs.skillSilence) { ctx.fillStyle = 'rgba(100, 100, 100, 0.7)'; ctx.fillRect(uiX, uiY, skillSize, skillSize); }
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.strokeRect(uiX, uiY, skillSize, skillSize);
                 ctx.fillStyle = 'white'; ctx.font = '20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s.icon, uiX + skillSize / 2, uiY + skillSize / 2);
                 ctx.font = '12px Arial'; ctx.fillText(s.key.toUpperCase(), uiX + skillSize / 2, uiY + skillSize - 8);
