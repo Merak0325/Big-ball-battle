@@ -56,9 +56,20 @@
             display: none;
             justify-content: flex-start;
             padding-top: 5vh;
+            padding-bottom: 5vh; /* 增加底部空間 */
         }
         #instructionsScreen h2 { font-size: 3rem; color: #4a90e2; }
-        #instructionsContent { max-width: 800px; text-align: left; font-size: 1.2rem; line-height: 1.8; }
+        /* [修改] 讓說明內容可以捲動 */
+        #instructionsContent { 
+            max-width: 800px; 
+            text-align: left; 
+            font-size: 1.2rem; 
+            line-height: 1.8; 
+            overflow-y: auto; /* 當內容過長時，顯示垂直捲軸 */
+            max-height: 70vh; /* 內容最大高度為視窗的 70% */
+            padding-right: 20px; /* 增加右邊距，避免文字緊貼捲軸 */
+            margin-bottom: 20px; /* 與下方按鈕的間距 */
+        }
         #instructionsContent strong { color: #ffeb3b; }
         #instructionsContent li { margin-bottom: 15px; }
 
@@ -242,7 +253,7 @@
             mana: 0,
             maxMana: 100,
             voidWalk: {
-                manaCost: 60, // [修改] 耗魔
+                manaCost: 60,
                 timer: 0,
                 isAvailable: false,
                 isActive: false,
@@ -254,7 +265,7 @@
                 invisibleTimer: 0,
             },
             starquake: {
-                manaCost: 50, // [修改] 耗魔
+                manaCost: 50,
                 timer: 0,
                 isAvailable: false,
                 isActive: false,
@@ -659,7 +670,7 @@
 
             const pc = chaser.particleCannon;
             pc.timer = 0; 
-            pc.isAvailable = false; // [修改] 恢復時間鎖定
+            pc.isAvailable = false; 
             pc.isActive = false; pc.isPreparing = false;
             pc.prepareTimer = 0; pc.beamCount = 0; pc.beamsFired = 0; pc.beamTimer = 0;
             pc.isFiringVolley = false; pc.volleyBulletCount = 0; pc.volleyTimer = 0; pc.target = null;
@@ -820,7 +831,7 @@
             if (gw.prepareTimer > 0) gw.prepareTimer -= 1000 / 60;
             if (gw.activeTimer > 0) gw.activeTimer -= 1000 / 60;
 
-            // [修改] 技能施放機率與條件
+            // 技能施放機率與條件
             let skillChance = 0;
             if (elapsedTime >= 60000) {
                 const secondsPastMinuteOne = Math.floor((elapsedTime - 60000) / 1000);
