@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大球追逐戰</title>
+    <style>
+        /* 基本樣式重設 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        /* 全螢幕覆蓋層通用樣式 */
+        .fullscreen-overlay {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+        }
+
+        /* 主選單 & 關卡選擇 */
+        .menu-screen h1, .menu-screen h2 {
+            font-size: 4rem;
+            color: #fff;
+            text-shadow: 0 0 15px #ff4d4d;
+        }
+        .menu-screen p {
+            font-size: 1.5rem;
+            color: #ccc;
+            margin-top: 0;
+            margin-bottom: 40px;
+            line-height: 1.5;
+        }
+        #levelSelectScreen { display: none; }
+
+        /* 遊戲說明畫面 */
+        #instructionsScreen {
+            display: none;
+            justify-content: flex-start;
+            padding-top: 5vh;
+        }
+        #instructionsScreen h2 { font-size: 3rem; color: #4a90e2; }
+        #instructionsContent { max-width: 800px; text-align: left; font-size: 1.2rem; line-height: 1.8; }
+        #instructionsContent strong { color: #ffeb3b; }
+        #instructionsContent li { margin-bottom: 15px; }
+
+        /* 遊戲畫布 */
+        #gameCanvas {
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        /* 遊戲結束 & 暫停畫面 */
+        #gameOverScreen, #pauseScreen { display: none; }
+        #gameOverScreen img { max-width: 90%; max-height: 50vh; border-radius: 20px; box-shadow: 0 0 30px rgba(255, 50, 50, 0.6); margin-bottom: 20px; object-fit: cover; }
+        #gameOverScreen h1, #pauseScreen h2 { font-size: 3rem; color: #ff4d4d; text-shadow: 0 0 10px #ff0000; }
+        #pauseScreen h2 { color: #4a90e2; text-shadow: 0 0 10px #4a90e2; }
+        .score-display { font-size: 1.8rem; color: #ffeb3b; margin: 5px 0; }
+        
+        /* 按鈕通用樣式 */
+        .button-container { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
+        .button-container.horizontal { flex-direction: row; }
+        .game-button { padding: 15px 30px; font-size: 1.5rem; color: white; border: 2px solid transparent; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; min-width: 200px; }
+        #levelSelectButton { background: #ff4d4d; box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4); }
+        #instructionsButton { background: #4a90e2; box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4); }
+        #level1Button { background: #546e7a; box-shadow: 0 4px 15px rgba(84, 110, 122, 0.4); }
+        #level2Button { background: #3498db; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4); }
+        #level3Button { background: #e74c3c; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4); }
+        #level4Button { background: #e67e22; box-shadow: 0 4px 15px rgba(230, 126, 34, 0.4); }
+        #restartButton, #pauseRestartButton { background: #ff4d4d; box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4); }
+        #backToMenuButton, #pauseBackToMenuButton { background: #4a90e2; box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4); }
+        #resumeButton { background: #2ecc71; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); }
+        .back-button { background: #666; }
+
+        .selected { transform: scale(1.1); border-color: #ffeb3b; box-shadow: 0 0 25px #ffeb3b; }
+        
+        /* 新增：底部提示文字樣式 */
+        .footer-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-shadow: 0 0 5px black;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="mainMenu" class="fullscreen-overlay menu-screen">
+        <h1>大球追逐戰</h1>
+        <p>在迷宮中蒐集能量碎片並盡可能地存活！</p>
+        <div class="button-container">
+            <button id="levelSelectButton" class="game-button">選擇關卡</button>
+            <button id="instructionsButton" class="game-button">遊戲說明</button>
+        </div>
+        <p class="footer-hint">使用 [方向鍵] 與 [Z] 鍵進行操作</p>
+    </div>
+
+    <div id="levelSelectScreen" class="fullscreen-overlay menu-screen">
+        <h2>選擇關卡</h2>
+        <div class="button-container">
+            <button id="level1Button" class="game-button">暗影迴廊</button>
+            <button id="level2Button" class="game-button">冰雪要塞</button>
+            <button id="level3Button" class="game-button">火山熔爐</button>
+            <button id="level4Button" class="game-button">隨機迷宮</button>
+            <button id="levelBack" class="game-button back-button">返回</button>
+        </div>
+        <p class="footer-hint">使用 [方向鍵] 與 [Z] 鍵進行操作</p>
+    </div>
+
+    <div id="instructionsScreen" class="fullscreen-overlay">
+        <h2>遊戲說明</h2>
+        <div id="instructionsContent">
+            <ul>
+                <li><strong>目標:</strong> 在迷宮中躲避大球的追擊，蒐集能量碎片，盡可能地生存下去！</li>
+                <li><strong>操作:</strong> 使用 <strong>[方向鍵]</strong> 移動，使用 <strong>[Z]</strong> 鍵確認選單選項。</li>
+                <li><strong>主動技能:</strong>
+                    <ul>
+                        <li><strong style="color: #f39c12;">[A] 幻影分身:</strong> 在原地留下一個吸引大球的殘影，自身進入潛行狀態。冷卻時間 20 秒。</li>
+                        <li><strong style="color: #3498db;">[S] 冰霜護盾:</strong> 產生一個能抵擋所有火焰攻擊的護盾，持續 4 秒。冷卻時間 15 秒。</li>
+                    </ul>
+                </li>
+                <li><strong>關卡特色:</strong>
+                    <ul>
+                        <li><strong>暗影迴廊:</strong> 關卡中只會出現 <strong style="color: #7edc7e;">加速鞋 👟</strong> 道具。</li>
+                        <li><strong>冰雪要塞:</strong> 關卡中只會出現 <strong style="color: #82cfff;">暫停時鐘 ⏱️</strong> 道具。</li>
+                        <li><strong>火山熔爐:</strong> 關卡中只會出現 <strong style="color: #f1c40f;">閘門鑰匙 🔑</strong>，可開啟特殊捷徑一次。</li>
+                        <li><strong>隨機迷宮:</strong> 所有道具都會出現，每次的地圖都獨一無二！</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <div class="button-container">
+            <button id="instructionsBack" class="game-button back-button">返回</button>
+        </div>
+        <p class="footer-hint">使用 [Z] 鍵返回</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="pauseScreen" class="fullscreen-overlay">
+        <h2>遊戲暫停</h2>
+        <div class="button-container">
+            <button id="resumeButton" class="game-button">繼續遊戲</button>
+            <button id="pauseRestartButton" class="game-button">再來一次</button>
+            <button id="pauseBackToMenuButton" class="game-button">回到主選單</button>
+        </div>
+        <p class="footer-hint">使用 [方向鍵]、[Z]、[ESC] 鍵進行操作</p>
+    </div>
+
+    <div id="gameOverScreen" class="fullscreen-overlay">
+        <h1>你被抓到了...</h1>
+        <img src="./img/final_fail.png" alt="遊戲結束" onerror="this.onerror=null;this.src='https://placehold.co/600x400/000000/ff0000?text=GAME+OVER&font=creepy';">
+        <p id="finalScore" class="score-display"></p>
+        <p id="finalTime" class="score-display"></p>
+        <div class="button-container horizontal">
+            <button id="restartButton" class="game-button">再來一次</button>
+            <button id="backToMenuButton" class="game-button">回到主選單</button>
+        </div>
+        <p class="footer-hint">使用 [方向鍵] 與 [Z] 鍵進行操作</p>
+    </div>
+
+    <script>
+        // --- DOM 元素 ---
+        const mainMenu = document.getElementById('mainMenu');
+        const levelSelectButton = document.getElementById('levelSelectButton');
+        const levelSelectScreen = document.getElementById('levelSelectScreen');
+        const level1Button = document.getElementById('level1Button');
+        const level2Button = document.getElementById('level2Button');
+        const level3Button = document.getElementById('level3Button');
+        const level4Button = document.getElementById('level4Button');
+        const levelBack = document.getElementById('levelBack');
+        const instructionsButton = document.getElementById('instructionsButton');
+        const instructionsScreen = document.getElementById('instructionsScreen');
+        const instructionsBack = document.getElementById('instructionsBack');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const restartButton = document.getElementById('restartButton');
+        const backToMenuButton = document.getElementById('backToMenuButton');
+        const finalTimeElement = document.getElementById('finalTime');
+        const finalScoreElement = document.getElementById('finalScore');
+        const pauseScreen = document.getElementById('pauseScreen');
+        const resumeButton = document.getElementById('resumeButton');
+        const pauseRestartButton = document.getElementById('pauseRestartButton');
+        const pauseBackToMenuButton = document.getElementById('pauseBackToMenuButton');
+
+
+        // --- 遊戲狀態 ---
+        let gameRunning = false;
+        let isPaused = false;
+        let animationFrameId;
+        let selectedButtonIndex = 0;
+        let currentButtons = [];
+        let startTime = 0;
+        let elapsedTime = 0;
+        let score = 0;
+        let pausedTime = 0;
+        let timeWhenPaused = 0;
+        let currentLevelId = null;
+
+        // --- 遊戲機制變數 ---
+        let collectibles = [], powerUps = [], projectiles = [], clone = null;
+        let collectibleSpawnCounter = 0, powerUpSpawnCounter = 0;
+        
+        // --- 圖片資源 ---
+        const chaserImage = new Image();
+        chaserImage.src = './img/merak_sit.png'; 
+
+        // --- 玩家設定 ---
+        const initialPlayerSpeed = 3;
+        const player = { x: 0, y: 0, radius: 10, speed: initialPlayerSpeed, color: '#00aaff', activeEffects: {}, skills: { clone: { cooldown: 20000, timer: 0, key: 'a' }, shield: { cooldown: 15000, timer: 0, key: 's' } }, hasGateKey: false, wasOnGateTile: null };
+
+        // --- 追逐者設定 ---
+        const initialChaserSpeed = 0.6;
+        const initialChaserRotationSpeed = 0.05;
+        const chaser = { 
+            x: 0, y: 0, radius: 20, visualRadius: 40, 
+            speed: initialChaserSpeed, speedBoost: 1, angle: 0, 
+            rotationSpeed: initialChaserRotationSpeed, path: [], pathUpdateCounter: 0, 
+            isFrozen: false, enrageTimeout: null, attackCooldown: 18, attackTimer: 0,
+            voidWalk: {
+                cooldown: 30000,
+                timer: 0,
+                isAvailable: false,
+                isActive: false,
+                isInvisible: false,
+                isPreparing: false,
+                prepareDuration: 1000,
+                prepareTimer: 0,
+                invisibleDuration: 5000,
+                invisibleTimer: 0,
+            }
+        };
+
+        // --- 鍵盤控制 ---
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, a: false, s: false };
+
+        // --- 迷宮設定 ---
+        let tileSize = 50;
+        
+        // --- A* 尋路演算法 ---
+        function findPath(startCoords, endCoords) {
+            const maze = levelData[currentLevelId].maze;
+            function GridNode(x, y, isWall) { this.x = x; this.y = y; this.isWall = isWall; this.f = 0; this.g = 0; this.h = 0; this.parent = null; this.neighbors = []; this.addNeighbors = function(grid) { if (this.x < grid[0].length - 1) this.neighbors.push(grid[this.y][this.x + 1]); if (this.x > 0) this.neighbors.push(grid[this.y][this.x - 1]); if (this.y < grid.length - 1) this.neighbors.push(grid[this.y + 1][this.x]); if (this.y > 0) this.neighbors.push(grid[this.y - 1][this.x]); }; }
+            let grid = Array.from(Array(maze.length), () => new Array(maze[0].length));
+            for (let y = 0; y < maze.length; y++) { for (let x = 0; x < maze[y].length; x++) { 
+                const tile = maze[y][x];
+                const isWall = tile === 1 || (tile === 2 && !player.hasGateKey);
+                grid[y][x] = new GridNode(x, y, isWall); 
+            } }
+            for (let y = 0; y < grid.length; y++) { for (let x = 0; x < grid[y].length; x++) { grid[y][x].addNeighbors(grid); } }
+            if (!grid[startCoords.y] || !grid[startCoords.y][startCoords.x] || !grid[endCoords.y] || !grid[endCoords.y][endCoords.x]) return [];
+            let startNode = grid[startCoords.y][startCoords.x]; let endNode = grid[endCoords.y][endCoords.x];
+            if (startNode.isWall || endNode.isWall) return [];
+            let openSet = [startNode]; let closedSet = [];
+            while (openSet.length > 0) {
+                let lowestIndex = 0;
+                for (let i = 0; i < openSet.length; i++) { if (openSet[i].f < openSet[lowestIndex].f) lowestIndex = i; }
+                let current = openSet[lowestIndex];
+                if (current === endNode) { let path = []; let temp = current; while (temp.parent) { path.push({ x: temp.x * tileSize + tileSize / 2, y: temp.y * tileSize + tileSize / 2 }); temp = temp.parent; } return path.reverse(); }
+                openSet.splice(lowestIndex, 1); closedSet.push(current);
+                for (let neighbor of current.neighbors) {
+                    if (!closedSet.includes(neighbor) && !neighbor.isWall) {
+                        let tempG = current.g + 1; let newPath = false;
+                        if (openSet.includes(neighbor)) { if (tempG < neighbor.g) { neighbor.g = tempG; newPath = true; } } else { neighbor.g = tempG; newPath = true; openSet.push(neighbor); }
+                        if (newPath) { neighbor.h = Math.abs(neighbor.x - endNode.x) + Math.abs(neighbor.y - endNode.y); neighbor.f = neighbor.g + neighbor.h; neighbor.parent = current; }
+                    }
+                }
+            }
+            return [];
+        }
+
+        function generateRandomMaze(width, height) {
+            let maze = Array.from({ length: height }, () => Array(width).fill(1));
+            let stack = [];
+            let startX = 1, startY = 1;
+            maze[startY][startX] = 0;
+            stack.push([startX, startY]);
+
+            while (stack.length > 0) {
+                let [cx, cy] = stack[stack.length - 1];
+                let neighbors = [];
+                if (cx > 1 && maze[cy][cx - 2] === 1) neighbors.push([cx - 2, cy, cx - 1, cy]);
+                if (cx < width - 2 && maze[cy][cx + 2] === 1) neighbors.push([cx + 2, cy, cx + 1, cy]);
+                if (cy > 1 && maze[cy - 2][cx] === 1) neighbors.push([cx, cy - 2, cx, cy - 1]);
+                if (cy < height - 2 && maze[cy + 2][cx] === 1) neighbors.push([cx, cy + 2, cx, cy + 1]);
+
+                if (neighbors.length > 0) {
+                    let [nx, ny, wx, wy] = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    maze[ny][nx] = 0;
+                    maze[wy][wx] = 0;
+                    stack.push([nx, ny]);
+                } else {
+                    stack.pop();
+                }
+            }
+
+            const removalChance = 0.15;
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    if (maze[y][x] === 1) {
+                        const isHorizontalWall = maze[y][x-1] === 0 && maze[y][x+1] === 0;
+                        const isVerticalWall = maze[y-1][x] === 0 && maze[y+1][x] === 0;
+                        if ((isHorizontalWall || isVerticalWall) && Math.random() < removalChance) {
+                            maze[y][x] = 0;
+                        }
+                    }
+                }
+            }
+
+            const gateCandidates = [];
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    if (maze[y][x] === 1) {
+                        if (maze[y][x - 1] === 0 && maze[y][x + 1] === 0 && maze[y-1][x] === 1 && maze[y+1][x] === 1) {
+                            gateCandidates.push({x, y});
+                        }
+                        else if (maze[y - 1][x] === 0 && maze[y + 1][x] === 0 && maze[y][x-1] === 1 && maze[y][x+1] === 1) {
+                            gateCandidates.push({x, y});
+                        }
+                    }
+                }
+            }
+
+            if (gateCandidates.length > 0) {
+                const gatesToPlace = Math.min(gateCandidates.length, 1 + Math.floor(Math.random() * 2)); 
+                for (let i = 0; i < gatesToPlace; i++) {
+                    const randomIndex = Math.floor(Math.random() * gateCandidates.length);
+                    const gatePos = gateCandidates.splice(randomIndex, 1)[0];
+                    maze[gatePos.y][gatePos.x] = 2;
+                }
+            }
+
+            return maze;
+        }
+        
+        const levelData = {
+            'shadowCorridor': {
+                name: '暗影迴廊',
+                maze: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                    [1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
+                    [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                colors: { bg: '#37474f', wall: '#263238', collectible: '#78909c' },
+                powerUpTypes: ['speed'],
+                generator: null
+            },
+            'iceFortress': {
+                name: '冰雪要塞',
+                maze: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                    [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                colors: { bg: '#e0f7fa', wall: '#b0bec5', collectible: '#f39c12' },
+                powerUpTypes: ['freeze'],
+                generator: null
+            },
+            'volcanicForge': {
+                name: '火山熔爐',
+                maze: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+                    [1, 0, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                    [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                colors: { bg: '#424242', wall: '#d84315', collectible: '#fdd835' },
+                powerUpTypes: ['gateKey'],
+                generator: null
+            },
+            'randomMaze': {
+                name: '隨機迷宮',
+                maze: [],
+                colors: { bg: '#2b2b2b', wall: '#555', collectible: '#ffeb3b' },
+                powerUpTypes: ['speed', 'freeze', 'gateKey'],
+                generator: () => generateRandomMaze(21, 13)
+            }
+        };
+        
+        // --- 調整畫布大小 ---
+        function resizeCanvas() {
+            const maze = levelData[currentLevelId].maze;
+            const mazeWidth = maze[0].length * tileSize;
+            const mazeHeight = maze.length * tileSize;
+            canvas.width = mazeWidth;
+            canvas.height = mazeHeight;
+            player.radius = tileSize / 3.5;
+            chaser.radius = tileSize / 3;
+            chaser.visualRadius = chaser.radius * 2;
+        }
+
+        // --- 事件監聽 (已重構) ---
+        document.addEventListener('visibilitychange', () => { if (document.hidden && gameRunning && !isPaused) { timeWhenPaused = Date.now(); } else if (!document.hidden && gameRunning && !isPaused && timeWhenPaused > 0) { pausedTime += Date.now() - timeWhenPaused; timeWhenPaused = 0; } });
+        
+        window.addEventListener('keydown', (e) => {
+            const key = e.key;
+            const lowerKey = key.toLowerCase();
+
+            // --- 遊戲執行中 (遊玩或暫停狀態) ---
+            if (gameRunning) {
+                if (key === 'Escape') {
+                    e.preventDefault();
+                    togglePause();
+                    return;
+                }
+
+                if (isPaused) {
+                    e.preventDefault();
+                    if (key === 'ArrowUp' || key === 'ArrowDown') {
+                        updateButtonSelection(key === 'ArrowDown' ? 1 : -1);
+                    } else if (lowerKey === 'z') {
+                        const selectedButton = pauseScreen.querySelector('.selected');
+                        if (selectedButton) selectedButton.click();
+                    }
+                } else { // 遊戲正在遊玩，非暫停
+                    if (key in keys || lowerKey in keys) {
+                        e.preventDefault();
+                        if (key in keys) keys[key] = true;
+                        if (lowerKey in keys) keys[lowerKey] = true;
+                    }
+                }
+                return;
+            }
+
+            // --- 遊戲未執行 (主選單等畫面) ---
+            let activeScreen = null;
+            if (mainMenu.style.display === 'flex') activeScreen = mainMenu;
+            else if (levelSelectScreen.style.display === 'flex') activeScreen = levelSelectScreen;
+            else if (gameOverScreen.style.display === 'flex') activeScreen = gameOverScreen;
+            else if (instructionsScreen.style.display === 'flex') activeScreen = instructionsScreen;
+
+            if (!activeScreen) return;
+
+            e.preventDefault();
+            const screenId = activeScreen.id;
+
+            switch (screenId) {
+                case 'mainMenu':
+                case 'levelSelectScreen':
+                    if (key === 'ArrowUp' || key === 'ArrowDown') {
+                        updateButtonSelection(key === 'ArrowDown' ? 1 : -1);
+                    } else if (lowerKey === 'z') {
+                        const selectedButton = activeScreen.querySelector('.selected');
+                        if (selectedButton) selectedButton.click();
+                    }
+                    break;
+
+                case 'gameOverScreen':
+                    if (key === 'ArrowLeft' || key === 'ArrowRight') {
+                        updateButtonSelection(key === 'ArrowRight' ? 1 : -1);
+                    } else if (lowerKey === 'z') {
+                        const selectedButton = activeScreen.querySelector('.selected');
+                        if (selectedButton) selectedButton.click();
+                    }
+                    break;
+
+                case 'instructionsScreen':
+                    if (lowerKey === 'z') {
+                        instructionsBack.click();
+                    }
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => { const key = e.key; const lowerKey = key.toLowerCase(); if (key in keys) { e.preventDefault(); keys[key] = false; } if (lowerKey in keys) { e.preventDefault(); keys[lowerKey] = false; } });
+        
+        // --- 畫面切換 & 遊戲控制函式 ---
+        function startGame(levelId) { currentLevelId = levelId; canvas.style.backgroundColor = levelData[currentLevelId].colors.bg; levelSelectScreen.style.display = 'none'; canvas.style.display = 'block'; initializeGame(); }
+        function showMainMenu() { gameOverScreen.style.display = 'none'; instructionsScreen.style.display = 'none'; levelSelectScreen.style.display = 'none'; mainMenu.style.display = 'flex'; updateCurrentButtons(mainMenu.querySelectorAll('.game-button')); }
+        function showInstructions() { mainMenu.style.display = 'none'; instructionsScreen.style.display = 'flex'; updateCurrentButtons([instructionsBack]); }
+        function showLevelSelect() { mainMenu.style.display = 'none'; levelSelectScreen.style.display = 'flex'; updateCurrentButtons(levelSelectScreen.querySelectorAll('.game-button')); }
+        function exitToMenu() { gameRunning = false; isPaused = false; canvas.style.display = 'none'; pauseScreen.style.display = 'none'; showMainMenu(); }
+
+        function togglePause() {
+            if (!gameRunning) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                timeWhenPaused = Date.now();
+                cancelAnimationFrame(animationFrameId);
+                pauseScreen.style.display = 'flex';
+                updateCurrentButtons(pauseScreen.querySelectorAll('.game-button'));
+            } else {
+                pausedTime += Date.now() - timeWhenPaused;
+                timeWhenPaused = 0;
+                pauseScreen.style.display = 'none';
+                gameLoop();
+            }
+        }
+        
+        levelSelectButton.addEventListener('click', showLevelSelect);
+        level1Button.addEventListener('click', () => startGame('shadowCorridor'));
+        level2Button.addEventListener('click', () => startGame('iceFortress'));
+        level3Button.addEventListener('click', () => startGame('volcanicForge'));
+        level4Button.addEventListener('click', () => startGame('randomMaze'));
+        levelBack.addEventListener('click', showMainMenu);
+        restartButton.addEventListener('click', () => { gameOverScreen.style.display = 'none'; initializeGame(); });
+        backToMenuButton.addEventListener('click', showMainMenu);
+        instructionsButton.addEventListener('click', showInstructions);
+        instructionsBack.addEventListener('click', showMainMenu);
+        resumeButton.addEventListener('click', togglePause);
+        pauseRestartButton.addEventListener('click', () => { pauseScreen.style.display = 'none'; isPaused = false; initializeGame(); });
+        pauseBackToMenuButton.addEventListener('click', exitToMenu);
+
+
+        // --- 遊戲核心邏輯 ---
+        function isWallCollision(x, y, radius) {
+            const maze = levelData[currentLevelId].maze;
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+                const checkX = x + radius * Math.cos(angle); const checkY = y + radius * Math.sin(angle);
+                const checkGridX = Math.floor(checkX / tileSize); const checkGridY = Math.floor(checkY / tileSize);
+                if (checkGridX < 0 || checkGridX >= maze[0].length || checkGridY < 0 || checkGridY >= maze.length) { return true; }
+                const checkTile = maze[checkGridY][checkGridX];
+                if (checkTile === 1 || (checkTile === 2 && !player.hasGateKey)) { return true; }
+            }
+            return false;
+        }
+
+        function hasLineOfSight(p1, p2) {
+            let x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
+            const dx = Math.abs(x2 - x1); const dy = Math.abs(y2 - y1);
+            const sx = (x1 < x2) ? 1 : -1; const sy = (y1 < y2) ? 1 : -1;
+            let err = dx - dy;
+            const maze = levelData[currentLevelId].maze;
+            while (true) {
+                const gridX = Math.floor(x1 / tileSize); const gridY = Math.floor(y1 / tileSize);
+                if (gridX < 0 || gridX >= maze[0].length || gridY < 0 || gridY >= maze.length || maze[gridY][gridX] === 1) { return false; }
+                if ((Math.abs(x1 - x2) < 1) && (Math.abs(y1 - y2) < 1)) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x1 += sx; }
+                if (e2 < dx) { err += dx; y1 += sy; }
+            }
+            return true;
+        }
+
+        function spawnItem(itemArray, itemData) {
+            const maze = levelData[currentLevelId].maze;
+            let attempts = 0;
+            while (attempts < 200) {
+                const row = Math.floor(Math.random() * maze.length);
+                const col = Math.floor(Math.random() * maze[0].length);
+                if (maze[row][col] === 0) {
+                    const x = col * tileSize + tileSize / 2; const y = row * tileSize + tileSize / 2;
+                    const distToPlayer = Math.sqrt(Math.pow(x - player.x, 2) + Math.pow(y - player.y, 2));
+                    if (distToPlayer > tileSize * 3) {
+                        itemArray.push({ ...itemData, x, y });
+                        return;
+                    }
+                }
+                attempts++;
+            }
+        }
+
+        function activatePowerUp(type) { if (player.activeEffects[type]) clearTimeout(player.activeEffects[type]); switch(type) { case 'speed': player.speed = initialPlayerSpeed * 2; player.activeEffects.speed = setTimeout(() => { player.speed = initialPlayerSpeed; delete player.activeEffects.speed; }, 5000); break; case 'freeze': chaser.isFrozen = true; player.activeEffects.freeze = setTimeout(() => { chaser.isFrozen = false; delete player.activeEffects.freeze; }, 5000); break; case 'gateKey': player.hasGateKey = true; break; } }
+        function updateButtonSelection(direction) { selectedButtonIndex = (selectedButtonIndex + direction + currentButtons.length) % currentButtons.length; highlightButton(); }
+        function highlightButton() { currentButtons.forEach((button, index) => { button.classList.toggle('selected', index === selectedButtonIndex); }); }
+        function updateCurrentButtons(buttons) { currentButtons = Array.from(buttons); selectedButtonIndex = 0; highlightButton(); }
+        function initializeGame() { gameRunning = true; resetGameState(); gameLoop(); }
+        
+        function resetGameState() {
+            if (levelData[currentLevelId].generator) { levelData[currentLevelId].maze = levelData[currentLevelId].generator(); }
+            resizeCanvas();
+            player.x = tileSize * 1.5; player.y = tileSize * 1.5;
+            player.hasGateKey = false;
+            player.wasOnGateTile = null;
+            chaser.x = canvas.width - tileSize * 1.5; chaser.y = canvas.height - tileSize * 1.5;
+            chaser.speed = initialChaserSpeed; chaser.speedBoost = 1;
+            if(chaser.enrageTimeout) clearTimeout(chaser.enrageTimeout);
+            chaser.angle = 0; chaser.path = []; chaser.pathUpdateCounter = 31; chaser.isFrozen = false;
+
+            // 重設虛空潛行技能狀態
+            const vw = chaser.voidWalk;
+            vw.timer = 0;
+            vw.isAvailable = false;
+            vw.isActive = false;
+            vw.isInvisible = false;
+            vw.isPreparing = false;
+            vw.prepareTimer = 0;
+            vw.invisibleTimer = 0;
+
+            for (let key in keys) { keys[key] = false; }
+            startTime = Date.now(); elapsedTime = 0;
+            pausedTime = 0; timeWhenPaused = 0;
+            score = 0;
+            isPaused = false;
+            collectibles = []; powerUps = []; projectiles = []; clone = null;
+            collectibleSpawnCounter = 0; powerUpSpawnCounter = 0;
+            for(const key in player.activeEffects) clearTimeout(player.activeEffects[key]);
+            player.activeEffects = {};
+            player.speed = initialPlayerSpeed;
+            player.skills.clone.timer = 0;
+            player.skills.shield.timer = 0;
+            const collectibleColor = levelData[currentLevelId].colors.collectible;
+            for (let i = 0; i < 5; i++) {
+                spawnItem(collectibles, { radius: tileSize / 6, color: collectibleColor });
+            }
+        }
+
+        function update() {
+            if (!gameRunning || isPaused) return;
+            elapsedTime = Date.now() - startTime - pausedTime;
+            for (const skill of Object.values(player.skills)) { if (skill.timer > 0) skill.timer -= 1000 / 60; }
+            if (keys.a && player.skills.clone.timer <= 0) { player.skills.clone.timer = player.skills.clone.cooldown; clone = { x: player.x, y: player.y, lifetime: 300 }; }
+            if (keys.s && player.skills.shield.timer <= 0) { player.skills.shield.timer = player.skills.shield.cooldown; player.activeEffects.shield = setTimeout(() => { delete player.activeEffects.shield; }, 4000); }
+            
+            const spawnIntervalSeconds = Math.max(1, 4.5 - Math.floor(elapsedTime / 30000) * 0.5);
+            const spawnIntervalFrames = spawnIntervalSeconds * 60;
+
+            collectibleSpawnCounter++;
+            if (collectibleSpawnCounter > spawnIntervalFrames) { spawnItem(collectibles, { radius: tileSize / 6, color: levelData[currentLevelId].colors.collectible }); collectibleSpawnCounter = 0; }
+            powerUpSpawnCounter++;
+            if (powerUpSpawnCounter > 1800) { 
+                const availablePowerUps = levelData[currentLevelId].powerUpTypes;
+                const type = availablePowerUps[Math.floor(Math.random() * availablePowerUps.length)];
+                const powerUpData = {
+                    'speed': {type: 'speed', color: '#7edc7e', emoji: '👟'},
+                    'freeze': {type: 'freeze', color: '#82cfff', emoji: '⏱️'},
+                    'gateKey': {type: 'gateKey', color: '#f1c40f', emoji: '🔑'}
+                };
+                spawnItem(powerUps, { radius: tileSize / 4, ...powerUpData[type] }); 
+                powerUpSpawnCounter = 0; 
+            }
+            
+            let moveX = 0, moveY = 0;
+            if (keys.ArrowUp) moveY -= player.speed; if (keys.ArrowDown) moveY += player.speed;
+            if (keys.ArrowLeft) moveX -= player.speed; if (keys.ArrowRight) moveX += player.speed;
+            if (moveX !== 0 && !isWallCollision(player.x + moveX, player.y, player.radius)) { player.x += moveX; }
+            if (moveY !== 0 && !isWallCollision(player.x, player.y + moveY, player.radius)) { player.y += moveY; }
+            
+            if (player.wasOnGateTile) {
+                const gateTileBounds = {
+                    left: player.wasOnGateTile.x * tileSize,
+                    right: (player.wasOnGateTile.x + 1) * tileSize,
+                    top: player.wasOnGateTile.y * tileSize,
+                    bottom: (player.wasOnGateTile.y + 1) * tileSize
+                };
+                if ( (player.x + player.radius < gateTileBounds.left) ||
+                     (player.x - player.radius > gateTileBounds.right) ||
+                     (player.y + player.radius < gateTileBounds.top) ||
+                     (player.y - player.radius > gateTileBounds.bottom) )
+                {
+                    player.hasGateKey = false;
+                    player.wasOnGateTile = null;
+
+                    // --- BUG FIX: Unstuck chaser from reappearing gate wall ---
+                    const maze = levelData[currentLevelId].maze;
+                    const chaserGridX = Math.floor(chaser.x / tileSize);
+                    const chaserGridY = Math.floor(chaser.y / tileSize);
+
+                    if (maze[chaserGridY] && maze[chaserGridY][chaserGridX] === 2) {
+                        const neighbors = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+                        for (const [dx, dy] of neighbors) {
+                            const nextX = chaserGridX + dx;
+                            const nextY = chaserGridY + dy;
+                            if (maze[nextY] && maze[nextY][nextX] === 0) {
+                                chaser.x = nextX * tileSize + tileSize / 2;
+                                chaser.y = nextY * tileSize + tileSize / 2;
+                                chaser.path = [];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            const currentPlayerGridX = Math.floor(player.x / tileSize);
+            const currentPlayerGridY = Math.floor(player.y / tileSize);
+            if (player.hasGateKey && levelData[currentLevelId].maze[currentPlayerGridY][currentPlayerGridX] === 2) {
+                player.wasOnGateTile = { x: currentPlayerGridX, y: currentPlayerGridY };
+            }
+            
+            [collectibles, powerUps, projectiles].forEach((itemArray, arrIndex) => {
+                for (let i = itemArray.length - 1; i >= 0; i--) {
+                    const item = itemArray[i];
+                    if (arrIndex === 2) { item.x += item.dx * item.speed; item.y += item.dy * item.speed; if(isWallCollision(item.x, item.y, item.radius)) { itemArray.splice(i, 1); continue; } }
+                    const dx = player.x - item.x; const dy = player.y - item.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < player.radius + item.radius) {
+                        if (arrIndex === 0) { score += 10; itemArray.splice(i, 1); }
+                        else if (arrIndex === 1) { activatePowerUp(item.type); itemArray.splice(i, 1); }
+                        else { if (player.activeEffects.shield) { itemArray.splice(i, 1); } else { endGame(); } }
+                    }
+                }
+            });
+            if (clone) { clone.lifetime--; const chaserDistToClone = Math.sqrt(Math.pow(chaser.x - clone.x, 2) + Math.pow(chaser.y - clone.y, 2)); if (clone.lifetime <= 0 || chaserDistToClone < chaser.radius) { clone = null; } }
+            
+            const vw = chaser.voidWalk;
+            if (!vw.isAvailable && elapsedTime >= 90000) { vw.isAvailable = true; }
+            if (vw.timer > 0) vw.timer -= 1000 / 60;
+            if (vw.prepareTimer > 0) vw.prepareTimer -= 1000 / 60;
+            if (vw.invisibleTimer > 0) vw.invisibleTimer -= 1000 / 60;
+
+            if (vw.isAvailable && !vw.isActive && vw.timer <= 0) {
+                if (Math.random() < (0.1 / 60)) {
+                    vw.isActive = true;
+                    vw.isPreparing = true;
+                    vw.prepareTimer = vw.prepareDuration;
+                    vw.timer = vw.cooldown;
+                }
+            }
+
+            if (vw.isPreparing && vw.prepareTimer <= 0) {
+                vw.isPreparing = false;
+                vw.isInvisible = true;
+                vw.invisibleTimer = vw.invisibleDuration;
+            }
+            if (vw.isInvisible && vw.invisibleTimer <= 0) {
+                vw.isInvisible = false;
+                vw.isActive = false;
+            }
+
+            if (!chaser.isFrozen && !chaser.voidWalk.isPreparing) {
+                const target = clone ? clone : player;
+                const canSeeTarget = !player.activeEffects.smoked && hasLineOfSight(chaser, target);
+                if (canSeeTarget) {
+                    if (chaser.enrageTimeout) clearTimeout(chaser.enrageTimeout);
+                    chaser.speedBoost = 1.3;
+                    chaser.rotationSpeed = initialChaserRotationSpeed * 2;
+                    chaser.enrageTimeout = setTimeout(() => { chaser.speedBoost = 1; chaser.rotationSpeed = initialChaserRotationSpeed; }, 1000);
+                    if (chaser.attackTimer <= 0) {
+                        const dx = target.x - chaser.x; const dy = target.y - chaser.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        projectiles.push({ x: chaser.x, y: chaser.y, dx: dx / dist, dy: dy / dist, speed: 5, radius: 5, color: '#ff8a80' });
+                        chaser.attackTimer = chaser.attackCooldown;
+                    }
+                }
+                if (chaser.attackTimer > 0) chaser.attackTimer--;
+                chaser.pathUpdateCounter++;
+                if (chaser.pathUpdateCounter > 30) {
+                    chaser.pathUpdateCounter = 0;
+                    const startGrid = { x: Math.floor(chaser.x / tileSize), y: Math.floor(chaser.y / tileSize) };
+                    const endGrid = { x: Math.floor(target.x / tileSize), y: Math.floor(target.y / tileSize) };
+                    chaser.path = findPath(startGrid, endGrid);
+                }
+                const currentSpeed = chaser.speed * chaser.speedBoost;
+                if (chaser.path && chaser.path.length > 0) {
+                    let pathTarget = chaser.path[0];
+                    const dx = pathTarget.x - chaser.x; const dy = pathTarget.y - chaser.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 1) { chaser.x += (dx / distance) * currentSpeed; chaser.y += (dy / distance) * currentSpeed; }
+                    if (distance < chaser.radius) { chaser.path.shift(); }
+                }
+                chaser.angle += chaser.rotationSpeed;
+                chaser.speed += 0.0002;
+            }
+        }
+
+        function formatTime(ms) { const minutes = Math.floor(ms / 60000); const seconds = Math.floor((ms % 60000) / 1000); const milliseconds = Math.floor((ms % 1000) / 10); return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`; }
+
+        function draw() {
+            const colors = levelData[currentLevelId].colors;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const maze = levelData[currentLevelId].maze;
+            for (let row = 0; row < maze.length; row++) { for (let col = 0; col < maze[row].length; col++) { 
+                const tile = maze[row][col];
+                if (tile === 1) { 
+                    ctx.fillStyle = colors.wall; 
+                    ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize); 
+                } else if (tile === 2) {
+                    if (player.hasGateKey) {
+                        ctx.globalAlpha = 0.5;
+                        ctx.fillStyle = colors.wall;
+                        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+                        ctx.globalAlpha = 1.0;
+                    } else {
+                        ctx.fillStyle = '#f1c40f';
+                        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+                    }
+                }
+            } }
+            [collectibles, powerUps, projectiles].forEach((itemArray, arrIndex) => { for (const item of itemArray) { ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); ctx.fillStyle = item.color; ctx.shadowColor = item.color; ctx.shadowBlur = 15; ctx.fill(); ctx.closePath(); if(arrIndex === 1) { ctx.font = `${item.radius * 1.5}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'black'; ctx.fillText(item.emoji, item.x, item.y); } } });
+            ctx.shadowBlur = 0;
+            if (clone) { ctx.save(); ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(clone.x, clone.y, player.radius, 0, Math.PI * 2); ctx.fillStyle = player.color; ctx.fill(); ctx.closePath(); ctx.restore(); }
+            ctx.save(); if (clone) ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2); ctx.fillStyle = player.color; ctx.shadowColor = player.activeEffects.speed ? '#7edc7e' : '#00aaff'; ctx.shadowBlur = 20; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 0; ctx.restore();
+            if (player.activeEffects.shield) { ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 5, 0, Math.PI * 2); ctx.strokeStyle = '#3498db'; ctx.lineWidth = 3; ctx.stroke(); ctx.closePath(); }
+            
+            ctx.save();
+            ctx.translate(chaser.x, chaser.y);
+            
+            if (chaser.voidWalk.isPreparing) {
+                const vw = chaser.voidWalk;
+                const progress = 1 - (vw.prepareTimer / vw.prepareDuration);
+                const radius = chaser.visualRadius * 2 * progress;
+                const alpha = 1 - progress;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(148, 0, 211, ${alpha})`;
+                ctx.fill();
+            }
+
+            ctx.rotate(chaser.angle);
+            
+            if (chaserImage.complete && chaserImage.naturalHeight !== 0) {
+                let chaserAlpha = 1.0;
+                if (chaser.isFrozen) chaserAlpha = 0.5;
+                if (chaser.voidWalk.isInvisible) chaserAlpha = 0.0;
+
+                if (chaserAlpha > 0) {
+                    ctx.globalAlpha = chaserAlpha;
+                    ctx.drawImage(chaserImage, -chaser.visualRadius, -chaser.visualRadius, chaser.visualRadius * 2, chaser.visualRadius * 2);
+                }
+            }
+            ctx.restore();
+
+            ctx.fillStyle = 'white'; ctx.font = '24px Arial'; ctx.textAlign = 'left'; ctx.fillText(formatTime(elapsedTime), 10, 30); ctx.textAlign = 'right'; ctx.fillText(`分數: ${score}`, canvas.width - 10, 30);
+            drawSkillUI();
+        }
+
+        function drawSkillUI() {
+            const uiY = canvas.height - 55;
+            const skillSize = 45;
+            const skills = [ { key: 'A', icon: '👻', skill: player.skills.clone }, { key: 'S', icon: '🛡️', skill: player.skills.shield } ];
+            skills.forEach((s, i) => {
+                const uiX = 20 + i * 60;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; ctx.fillRect(uiX, uiY, skillSize, skillSize);
+                const cooldownRatio = s.skill.timer / s.skill.cooldown;
+                if (cooldownRatio > 0) { ctx.fillStyle = 'rgba(200, 0, 0, 0.7)'; ctx.fillRect(uiX, uiY + skillSize * (1 - cooldownRatio), skillSize, skillSize * cooldownRatio); }
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.strokeRect(uiX, uiY, skillSize, skillSize);
+                ctx.fillStyle = 'white'; ctx.font = '20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s.icon, uiX + skillSize / 2, uiY + skillSize / 2);
+                ctx.font = '12px Arial'; ctx.fillText(s.key.toUpperCase(), uiX + skillSize / 2, uiY + skillSize - 8);
+            });
+        }
+
+        function checkCollision() { 
+            const dx = player.x - chaser.x; const dy = player.y - chaser.y; const distance = Math.sqrt(dx * dx + dy * dy); if (distance < player.radius + chaser.radius) { endGame(); } 
+        }
+        
+        function endGame() { 
+            if (!gameRunning) return; 
+            gameRunning = false; 
+            cancelAnimationFrame(animationFrameId); 
+            finalTimeElement.textContent = `生存時間: ${formatTime(elapsedTime)}`;
+            finalScoreElement.textContent = `最終分數: ${score}`;
+            gameOverScreen.style.display = 'flex'; 
+            updateCurrentButtons(gameOverScreen.querySelectorAll('.game-button')); 
+        }
+
+        function gameLoop() { 
+            update(); 
+            draw(); 
+            if (!isPaused) {
+                checkCollision(); 
+            }
+            if(gameRunning) { 
+                animationFrameId = requestAnimationFrame(gameLoop); 
+            } 
+        }
+
+        // --- 初始設定 ---
+        chaserImage.onload = () => console.log("本地大球圖片載入成功！");
+        chaserImage.onerror = () => console.log("本地大球圖片載入失敗，使用預設外觀。");
+        showMainMenu();
+        
+    </script>
+
+</body>
+</html>
