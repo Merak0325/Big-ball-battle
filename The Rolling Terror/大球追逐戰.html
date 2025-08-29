@@ -816,10 +816,10 @@
             const gw = chaser.gravityWell;
 
             // 技能解鎖時間
-            if (!vw.isAvailable && elapsedTime >= 60000) { vw.isAvailable = true; }
-            if (!sq.isAvailable && elapsedTime >= 120000) { sq.isAvailable = true; }
-            if (!pc.isAvailable && elapsedTime >= 180000) { pc.isAvailable = true; }
-            if (!gw.isAvailable && elapsedTime >= 240000) { gw.isAvailable = true; }
+            if (!vw.isAvailable && elapsedTime >= 40000) { vw.isAvailable = true; }
+            if (!sq.isAvailable && elapsedTime >= 80000) { sq.isAvailable = true; }
+            if (!pc.isAvailable && elapsedTime >= 130000) { pc.isAvailable = true; }
+            if (!gw.isAvailable && elapsedTime >= 190000) { gw.isAvailable = true; }
 
             // 技能計時器
             if (vw.prepareTimer > 0) vw.prepareTimer -= 1000 / 60;
@@ -833,8 +833,8 @@
 
             // 技能施放機率與條件
             let skillChance = 0;
-            if (elapsedTime >= 60000) {
-                const secondsPastMinuteOne = Math.floor((elapsedTime - 60000) / 1000);
+            if (elapsedTime >= 40000) {
+                const secondsPastMinuteOne = Math.floor((elapsedTime - 40000) / 1000);
                 const increments = Math.floor(secondsPastMinuteOne / 30);
                 skillChance = Math.min(0.40, 0.05 + increments * 0.05);
             }
@@ -894,7 +894,7 @@
                 }
                 gw.expansionProgress = Math.min(1, gw.expansionProgress);
 
-                const pullStrength = 3.3; 
+                const pullStrength = 3.6; 
                 const dx = chaser.x - player.x;
                 const dy = chaser.y - player.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
