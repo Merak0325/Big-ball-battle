@@ -57,6 +57,8 @@
         <div id="start-screen" class="bg-white rounded-2xl shadow-xl p-8 text-center space-y-6">
             <img src="./img/merak_sit.jpg" alt="坐著的大球" class="max-h-48 mx-auto object-contain" onerror="this.onerror=null;this.src='https://placehold.co/200x200/a0e0ff/333333?text=大球!&font=noto-sans-tc';">
             <h1 class="text-4xl font-bold text-gray-800">大球養成日記</h1>
+            <!-- 新增：載入指示器 -->
+            <p id="loading-indicator" class="text-purple-600 font-semibold animate-pulse">遊戲資源載入中，請稍候...</p>
             <div class="text-left bg-gray-100 p-4 rounded-lg space-y-2">
                 <h2 class="font-bold text-lg">遊戲說明：</h2>
                 <p class="text-gray-600">這顆看似普通的大球，其實是某顆恆星的化身。在限定天數內與大球培養感情，提升好感度來解鎖更多有趣的互動吧！</p>
@@ -64,9 +66,10 @@
             <div class="space-y-3">
                 <h3 class="font-bold text-xl">選擇遊戲天數：</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button data-days="5" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600">短期 (5天)</button>
-                    <button data-days="10" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600">中期 (10天)</button>
-                    <button data-days="20" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600">長期 (20天)</button>
+                    <!-- 修改：預設為 disabled -->
+                    <button data-days="5" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600" disabled>短期 (5天)</button>
+                    <button data-days="10" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600" disabled>中期 (10天)</button>
+                    <button data-days="20" class="start-game-btn action-button bg-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-purple-600" disabled>長期 (20天)</button>
                 </div>
             </div>
         </div>
@@ -141,7 +144,7 @@
                  <div id="achievement-unlocked" class="hidden text-center mb-4 p-3 bg-yellow-100 border-2 border-yellow-300 rounded-lg">
                     <h3 class="text-2xl font-bold text-yellow-600">🏅 成就解鎖：回憶收藏家 🏅</h3>
                     <p class="text-gray-700 mt-2">你與大球一起體驗了所有能做的事情，創造了獨一無二的完整回憶！謝謝你如此用心地陪伴她。</p>
-                </div>
+                 </div>
                  <h2 class="font-bold text-lg mb-2">與大球的回憶：</h2>
                  <div id="action-summary" class="text-gray-600 space-y-1"></div>
                  <p id="quest-summary" class="text-gray-800 font-bold mt-2"></p>
@@ -180,7 +183,7 @@
             excavator: { text: "跟你一起開挖土機，把所有煩惱都清除掉的感覺，真的好紓壓！", weight: 3 },
             fire: { text: "最喜歡在冷天時，跟你一起待在暖暖的爐火旁，感覺心都變暖了。", weight: 2 },
             snowman: { text: "在熱天時一起堆的雪人，是最棒的消暑回憶！", weight: 2 },
-            fly: { text: "用呆毛帶你一起在天上飛，感覺就像在星際間遨遊一樣自由自在！", weight: 3 },
+            fly: { text: "用呆毛帶著你一起在天空飛翔，感覺就像星際遨遊般自由自在！", weight: 3 },
             note: { text: "還記得吃了音符後，我不自覺唱出的那首搖籃曲，那是大熊星座最溫暖的旋律。", weight: 3 }
         };
 
@@ -218,6 +221,7 @@
         const endDescription = document.getElementById('end-description');
         const memorableEventContainer = document.getElementById('memorable-event');
         const achievementContainer = document.getElementById('achievement-unlocked');
+        const loadingIndicator = document.getElementById('loading-indicator');
 
         // --- Action Definitions ---
         const actions = {
@@ -688,10 +692,56 @@
             interactSubmenu.classList.remove('is-active');
         }
 
+        // 新增：圖片預載入函式
+        function preloadImages(urls) {
+            const promises = urls.map(url => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.src = url;
+                    // 不論成功或失敗都 resolve，確保一張圖片錯誤不會中斷整個遊戲
+                    img.onload = resolve;
+                    img.onerror = resolve; 
+                });
+            });
+            return Promise.all(promises);
+        }
+
         function initializeApp() {
             gameScreen.classList.add('hidden');
             endScreen.classList.add('hidden');
             startScreen.classList.remove('hidden');
+
+            // 修改：顯示載入指示器，禁用按鈕
+            loadingIndicator.classList.remove('hidden');
+            startGameBtns.forEach(btn => btn.disabled = true);
+
+            // --- 圖片預載入邏輯 ---
+            // 收集所有圖片路徑
+            const allActionImages = Object.values(actions).flatMap(action => {
+                if (action.img) return [`./img/${action.img}`];
+                if (action.special === 'chance') {
+                    return [`./img/${action.success.img}`, `./img/${action.failure.img}`];
+                }
+                return [];
+            });
+
+            const staticImages = [
+                './img/merak_sit.jpg',
+                './img/merak_rocket.jpg',
+                './img/merak_board_false.jpg',
+                './img/merak_morning.jpg'
+            ];
+            
+            // 使用 Set 確保路徑不重複
+            const uniqueImageUrls = [...new Set([...staticImages, ...allActionImages])];
+
+            // 執行預載入
+            preloadImages(uniqueImageUrls).then(() => {
+                console.log('所有圖片資源已預載完成！');
+                // 載入完成後，隱藏指示器並啟用按鈕
+                loadingIndicator.classList.add('hidden');
+                startGameBtns.forEach(btn => btn.disabled = false);
+            });
         }
 
         // --- Event Listeners ---
